@@ -4,7 +4,7 @@ import { LEVEL_1 } from "../lib/maze-data.mjs";
 import { parseMaze, tileAt, isWalkable } from "../lib/maze.mjs";
 import { DIRS } from "../lib/input.mjs";
 import { playerSpeed, playerSpeedFraction } from "../lib/speeds.mjs";
-import { createPlayer, stepPlayer, tileOf, CORNER_TOLERANCE, TILE_PX } from "../lib/player.mjs";
+import { createPlayer, stepPlayer, bufferWant, tileOf, CORNER_TOLERANCE, TILE_PX } from "../lib/player.mjs";
 
 const maze = parseMaze(LEVEL_1);
 const TICK = 1 / 60;
@@ -226,6 +226,16 @@ test("stepPlayer does not mutate its arguments", () => {
   const r = stepPlayer(p, board, "up", SPEED_1, TICK);
   assert.equal(JSON.stringify([p, board]), snapshot);
   assert.notEqual(r.player, p);
+});
+
+test("bufferWant: valid perpendicular replaces, current direction and junk keep the buffer", () => {
+  const p = Object.assign(createPlayer(maze), { wantDir: "up" });
+  assert.equal(bufferWant(p, "down"), "down");
+  assert.equal(bufferWant(p, "right"), "right");
+  assert.equal(bufferWant(p, "left"), "up", "current direction is a no-op");
+  for (const junk of [null, undefined, "", "diagonal", 3, {}]) assert.equal(bufferWant(p, junk), "up", String(junk));
+  assert.equal(bufferWant(createPlayer(maze), "sideways"), null);
+  assert.equal(p.wantDir, "up", "does not mutate");
 });
 
 test("CORNER_TOLERANCE is exported for tuning", () => {

@@ -200,9 +200,3 @@ function drawBackdrop(ctx, maze, palette) {
     drawHouse(ctx, maze.house, palette);
     ctx.restore();
 }
-
-/** Draw the whole board in one go (backdrop plus every pellet of a fresh maze). */
-function drawBoard(ctx, maze, palette, timeMs) {
-    drawBackdrop(ctx, maze, palette);
-    drawPellets(ctx, maze, palette, timeMs);
-}

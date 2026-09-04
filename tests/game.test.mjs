@@ -99,6 +99,42 @@ test("a direction pressed during a pause is buffered, not lost", () => {
   assert.equal(next.player.dir, "right");
 });
 
+test("holding the current direction through pellet pauses keeps a tapped pre-turn", () => {
+  // Row 4, moving left from tile 6: pellets at 5 and 4, up legal only at 4.
+  // Every pellet eaten is a pause tick, so the pause branch must buffer
+  // exactly like stepPlayer or the held key wipes the tap.
+  assert.equal(tileAt(maze, 5, 4), TILE.PELLET);
+  assert.equal(tileAt(maze, 4, 4), TILE.PELLET);
+  assert.ok(isWalkable(tileAt(maze, 4, 3)) && !isWalkable(tileAt(maze, 5, 3)));
+  let s = withPlayer(createState(maze), { x: centre(6), y: centre(4), dir: "left" });
+  s = step(s, { wantDir: "up" }, TICK).state; // tap up
+  let turned = null;
+  let paused = 0;
+  for (let i = 0; i < 200 && turned === null; i++) {
+    if (s.pauseTicks > 0) paused++;
+    s = step(s, { wantDir: "left" }, TICK).state; // hold left
+    if (s.player.dir === "up") turned = { x: s.player.x, tick: i };
+    else assert.equal(s.player.wantDir, "up", `buffer kept at tick ${i} (pauseTicks ${s.pauseTicks})`);
+  }
+  assert.ok(paused >= 1, "at least one pellet pause happened before the junction");
+  assert.ok(turned, "the tapped up turn is still taken");
+  assert.equal(turned.x, centre(4), "taken at the junction");
+});
+
+test("an invalid wantDir during a pause is ignored, not stored", () => {
+  const s0 = withPlayer(createState(maze), { x: centre(13) - 3.5, dir: "left" });
+  const paused = step(s0, { wantDir: null }, TICK).state;
+  assert.equal(paused.pauseTicks, 1);
+  for (const bad of ["sideways", "", 7, {}, true]) {
+    const r = step(paused, { wantDir: bad }, TICK);
+    assert.equal(r.state.player.wantDir, null, `ignored ${String(bad)}`);
+    assert.doesNotThrow(() => step(r.state, { wantDir: null }, TICK), `next tick after ${String(bad)}`);
+  }
+  // A valid perpendicular tap during the pause is buffered; the current direction is a no-op.
+  assert.equal(step(paused, { wantDir: "up" }, TICK).state.player.wantDir, "up");
+  assert.equal(step(paused, { wantDir: "left" }, TICK).state.player.wantDir, null);
+});
+
 test("step rejects a dt above 50 ms or a non-finite or negative one", () => {
   const s = createState(maze);
   assert.throws(() => step(s, { wantDir: null }, 0.0501), /dt/);
