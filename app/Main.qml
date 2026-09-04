@@ -5,33 +5,43 @@ import Quickshell.Hyprland
 import "lib/maze.mjs" as Maze
 import "lib/maze-data.mjs" as MazeData
 import "lib/game.mjs" as Game
+import "lib/flow.mjs" as Flow
+import "lib/attract.mjs" as Attract
+import "lib/attract-script.mjs" as AttractScript
 import "lib/input.mjs" as Input
 import "lib/player.mjs" as Player
 import "render/Board.js" as Board
 import "render/Sprites.js" as Sprites
 import "render/Hud.js" as Hud
+import "render/Screens.js" as Screens
 
 // Entry point: `qs -p app/Main.qml` (via bin/pacman). One floating window in
 // the theme's colours holding the PixelStage; the game is drawn every frame
 // in native 224x288 units (ADR-0002), the maze offset below the HUD rows.
 // The game state lives in lib/game.mjs and advances in fixed 1/60 s ticks;
-// this file only feeds it input and draws what it returns.
+// the screen flow around it (title, ready, pause, game over, the attract
+// demo) in lib/flow.mjs. This file only feeds them input and draws what
+// they return.
 //
-// Keys: arrows / hjkl / WASD move, g toggles arcade/smooth, q or Escape
-// quits, F12 grabs a frame when PACMAN_DEBUG=1.
+// Keys: Enter/Space starts from the title; arrows / hjkl / WASD move; p or
+// Escape pauses and resumes; g toggles arcade/smooth; s toggles scanlines
+// wherever it is not "down" (title, paused, game over); Escape on the title
+// quits, q quits at once in a game and after a one-second hold on the
+// title; any key leaves the demo; F12 grabs a frame when PACMAN_DEBUG=1.
 //
 // Debug hooks (PACMAN_DEBUG=1): the fps is logged once a second (with the
-// phase, mode, fright timer and every ghost's state and tile) and shown in
-// the overlay with the player's tile and wanted direction, every game
-// event is logged, and PACMAN_DEBUG_KEYS="Left,1500,Up,F12,q" replays those
-// keys through the same handlers 1.5 s after start (direction keys are
-// tapped: pressed and released), a number in the list being a pause in
-// milliseconds (Hyprland's permission system blocks virtual keyboards, so
-// this is how the build is verified unattended).
+// screen, phase, mode, fright timer and every ghost's state and tile) and
+// shown in the overlay with the player's tile and wanted direction, every
+// game event and flow transition is logged, and
+// PACMAN_DEBUG_KEYS="Return,3000,p,1000,p,q" replays those keys through the
+// same handlers 1.5 s after start (keys are tapped: pressed and released),
+// a number in the list being a pause in milliseconds (Hyprland's permission
+// system blocks virtual keyboards, so this is how the build is verified
+// unattended).
 ShellRoot {
     FloatingWindow {
         id: window
-        title: "Pacman"
+        title: window.paused ? "Pacman — paused" : "Pacman"
         // 28x36 tiles of 8 px at 3x.
         implicitWidth: 672
         implicitHeight: 864
@@ -56,7 +66,15 @@ ShellRoot {
         // Parsed once; the renderer caches its wall geometry per maze object.
         readonly property var maze: Maze.parseMaze(MazeData.LEVEL_1)
 
-        // The whole game state: replaced (never mutated) on every tick.
+        // The committed demo script must have been generated from this maze;
+        // otherwise the title simply never starts the demo.
+        readonly property var attractScript: AttractScript.ATTRACT
+        readonly property bool attractOk: Attract.attractValid(attractScript, MazeData.LEVEL_1)
+
+        // The screen flow and the whole game state: both replaced (never
+        // mutated) on every tick. The game state on the title is a placeholder
+        // that is never drawn; a start or the demo creates the real one.
+        property var flow: Flow.createFlow({ attract: attractOk })
         property var state: Game.createState(maze)
         // Unconsumed frame time, in seconds, sliced into Game.TICK steps.
         property real acc: 0
@@ -64,11 +82,24 @@ ShellRoot {
         // press since the last tick, so a tap shorter than a frame still lands.
         property var pressed: []
         property var pendingPress: null
+        // q is down on the title (it has to be held a second to quit).
+        property bool quitHeld: false
 
-        // Milliseconds since the loop started; drives the power-pellet blink.
+        // Milliseconds since the loop started; drives the blinks.
         property real timeMs: 0
         property int frames: 0
         property int fps: 0
+
+        readonly property bool onTitle: flow.screen === "title"
+        readonly property bool paused: flow.screen === "paused"
+        // 1UP blinks at 250 ms (arcade only); PRESS ENTER and DEMO at 500 ms.
+        readonly property bool blinkOn: Math.floor(timeMs / 250) % 2 === 0
+        readonly property bool slowBlinkOn: Math.floor(timeMs / 500) % 2 === 0
+
+        // A CSS colour string for a Canvas: `c` at alpha `a`.
+        function rgba(c, a) {
+            return "rgba(" + Math.round(c.r * 255) + "," + Math.round(c.g * 255) + "," + Math.round(c.b * 255) + "," + a + ")";
+        }
 
         function palette() {
             return {
@@ -96,6 +127,10 @@ ShellRoot {
                 ready: String(Theme.yellow),
                 gameOver: String(Theme.red),
                 eatenScore: String(Theme.cyan),
+                // The title, the quit bar and the pause dim (the background at 60 %).
+                title: String(Theme.accent),
+                quit: String(Theme.red),
+                dim: rgba(Theme.background, 0.6),
             };
         }
 
@@ -119,50 +154,185 @@ ShellRoot {
             return name === undefined ? null : name;
         }
 
+        function isStartKey(key) {
+            return key === Qt.Key_Return || key === Qt.Key_Enter || key === Qt.Key_Space;
+        }
+
+        // Every key the game reacts to; any of them ends the demo.
+        function isGameKey(key) {
+            return directionName(key) !== null || isStartKey(key)
+                || key === Qt.Key_P || key === Qt.Key_Escape || key === Qt.Key_Q || key === Qt.Key_S;
+        }
+
+        // Replace the flow, doing what the transition asks for: a new game on
+        // the way from the title into ready (the demo from its script's seed),
+        // held keys dropped on the way into a pause or the title.
+        function setFlow(next) {
+            const prev = flow;
+            if (next === prev) return;
+            if (prev.screen !== next.screen || prev.attract !== next.attract) {
+                if (prev.screen === "title" && next.screen === "ready") {
+                    state = Game.createState(maze, next.attract
+                        ? { seed: attractScript.seed, highScore: Settings.highScore }
+                        : { highScore: Settings.highScore });
+                    acc = 0;
+                }
+                if (next.screen === "paused" || next.screen === "title") {
+                    pressed = [];
+                    pendingPress = null;
+                }
+                // Spec 0007 (sound): stop the siren on "paused", restart it on the way back.
+                if (debug) {
+                    console.info("Debug: flow " + prev.screen + (prev.attract ? " (demo)" : "") + " -> "
+                        + next.screen + (next.attract ? " (demo)" : "") + " at tick " + state.tick + " score " + state.score);
+                }
+            }
+            flow = next;
+        }
+
+        function act(action) {
+            setFlow(Flow.flowAction(flow, action));
+        }
+
+        // Leave. A real game in progress still records its best.
+        function quit() {
+            if (!flow.attract && !onTitle) Settings.setHighScore(state.highScore);
+            Qt.quit();
+        }
+
         // Returns true when the key was handled.
         function handleKey(key) {
-            const name = directionName(key);
-            if (name !== null) {
-                pressed = Input.pressKey(pressed, name);
-                pendingPress = Input.keyToDirection(name);
-            } else if (key === Qt.Key_Escape || key === Qt.Key_Q) {
-                Qt.quit();
-            } else if (key === Qt.Key_G) {
-                Settings.toggleMode();
-            } else if (key === Qt.Key_F12 && debug) {
+            if (key === Qt.Key_F12 && debug) {
                 grabFrame();
-            } else {
-                return false;
+                return true;
             }
-            return true;
+            if (key === Qt.Key_G) {
+                Settings.toggleMode();
+                return true;
+            }
+            if (flow.attract) {
+                if (!isGameKey(key)) return false;
+                act("any-key");
+                return true;
+            }
+            const name = directionName(key);
+            switch (flow.screen) {
+            case "title":
+                if (isStartKey(key)) act("start");
+                else if (key === Qt.Key_Escape) quit();
+                else if (key === Qt.Key_Q) quitHeld = true;
+                else if (key === Qt.Key_S) Settings.toggleScanlines();
+                else if (name !== null) act("any-key");
+                else return false;
+                return true;
+            case "paused":
+                if (isStartKey(key) || key === Qt.Key_P || key === Qt.Key_Escape) act("resume");
+                else if (key === Qt.Key_Q) quit();
+                else if (key === Qt.Key_S) Settings.toggleScanlines();
+                else return false;
+                return true;
+            case "gameover":
+                if (key === Qt.Key_Q) quit();
+                else if (key === Qt.Key_S) Settings.toggleScanlines();
+                else return false;
+                return true;
+            default:
+                // ready, playing, dying, level-clear: the game has the keys.
+                if (name !== null) {
+                    pressed = Input.pressKey(pressed, name);
+                    pendingPress = Input.keyToDirection(name);
+                } else if (key === Qt.Key_P || key === Qt.Key_Escape) {
+                    act("toggle-pause");
+                } else if (key === Qt.Key_Q) {
+                    quit();
+                } else {
+                    return false;
+                }
+                return true;
+            }
         }
 
         function handleKeyRelease(key) {
+            if (key === Qt.Key_Q && quitHeld) {
+                quitHeld = false;
+                act("quit-release");
+                return true;
+            }
             const name = directionName(key);
             if (name === null) return false;
             pressed = Input.releaseKey(pressed, name);
             return true;
         }
 
-        // One rendered frame: consume the elapsed time in fixed ticks.
+        // The window went to the background: drop every held key and the
+        // quit hold, and pause a game in progress (never auto-resumed).
+        function loseFocus() {
+            pressed = [];
+            pendingPress = null;
+            if (quitHeld) {
+                quitHeld = false;
+                act("quit-release");
+            }
+            if (debug) console.info("Debug: window inactive on " + flow.screen);
+            act("pause");
+        }
+
+        function handleEvents(events, s, f) {
+            for (let i = 0; i < events.length; i++) {
+                const e = events[i];
+                if (e.type === "level-clear") console.info("Level clear: score " + s.score + " after " + s.tick + " ticks");
+                if (e.type === "game-over") console.info("Game over: score " + s.score + " on level " + s.level);
+                if ((e.type === "game-over" || e.type === "level-clear") && !f.attract) Settings.setHighScore(s.highScore);
+                if (debug) {
+                    console.info("Debug: event " + JSON.stringify(e) + " tick " + s.tick + " score " + s.score
+                        + " lives " + s.lives + " left " + s.pelletsLeft + " phase " + s.phase);
+                }
+            }
+        }
+
+        // One rendered frame: consume the elapsed time in fixed ticks. The game
+        // is stepped only on the screens where it runs; the flow's own clocks
+        // (idle -> demo, game over -> title, the q hold) run every tick.
         function advance(frameTime) {
             acc += Math.min(frameTime, 0.25);
             const want = pendingPress !== null ? pendingPress : Input.wantedDirection(pressed);
             pendingPress = null;
-            const input = { wantDir: want };
+            let f = flow;
             let s = state;
             while (acc >= Game.TICK) {
-                const r = Game.step(s, input, Game.TICK);
-                s = r.state;
                 acc -= Game.TICK;
-                for (let i = 0; i < r.events.length; i++) {
-                    const e = r.events[i];
-                    if (e.type === "level-clear") console.info("Level clear: score " + s.score + " after " + s.tick + " ticks");
-                    if (e.type === "game-over") console.info("Game over: score " + s.score + " on level " + s.level);
-                    if (debug) {
-                        console.info("Debug: event " + JSON.stringify(e) + " tick " + s.tick + " score " + s.score
-                            + " lives " + s.lives + " left " + s.pelletsLeft + " phase " + s.phase);
+                if (Flow.shouldStep(f)) {
+                    const input = { wantDir: f.attract ? Attract.attractInput(attractScript, s.tick) : want };
+                    const r = Game.step(s, input, Game.TICK);
+                    s = r.state;
+                    handleEvents(r.events, s, f);
+                    f = Flow.syncFlow(f, s.phase);
+                    if (f.attract && Attract.attractEnded(attractScript, s.tick)) {
+                        if (s.score !== attractScript.expectedScore) {
+                            console.warn("Attract: demo ended with score " + s.score + ", expected " + attractScript.expectedScore
+                                + " (run `node tools/gen-attract.mjs`)");
+                        } else if (debug) {
+                            console.info("Debug: demo ended at tick " + s.tick + " with the expected score " + s.score);
+                        }
+                        f = Flow.flowAction(f, "attract-end");
                     }
+                }
+                f = Flow.flowTick(f, 1);
+                if (quitHeld && f.screen === "title") {
+                    f = Flow.flowAction(f, "quit-hold");
+                    if (f.quitHoldTicks >= Flow.QUIT_HOLD_TICKS) {
+                        state = s;
+                        flow = f;
+                        quit();
+                        return;
+                    }
+                }
+                if (f !== flow) {
+                    // A transition may replace the game state (a new game); pick it up.
+                    state = s;
+                    setFlow(f);
+                    s = state;
+                    f = flow;
                 }
             }
             state = s;
@@ -175,7 +345,7 @@ ShellRoot {
                 tile: tile,
                 wantDir: state.player.wantDir !== null ? state.player.wantDir : Input.wantedDirection(pressed),
                 mode: state.mode,
-                phase: state.phase,
+                phase: flow.screen + (flow.attract ? "/demo" : ""),
                 fright: state.frightTicks,
             };
         }
@@ -192,9 +362,13 @@ ShellRoot {
             stage.grabToImage(result => {
                 const ok = result.saveToFile(window.framePath);
                 console.info("Debug: frame " + (ok ? "saved to " : "NOT saved to ") + window.framePath
-                    + " (mode " + stage.mode + ", block " + stage.blockSize + " device px, dpr "
-                    + window.devicePixelRatio + ")");
+                    + " (screen " + window.flow.screen + ", mode " + stage.mode + ", block " + stage.blockSize
+                    + " device px, dpr " + window.devicePixelRatio + ", scanlines " + stage.scanlines + ")");
             });
+        }
+
+        Component.onCompleted: {
+            if (!attractOk) console.warn("Attract: lib/attract-script.mjs does not match the maze; the demo is off (run `node tools/gen-attract.mjs`)");
         }
 
         FocusScope {
@@ -211,6 +385,13 @@ ShellRoot {
                 event.accepted = event.isAutoRepeat ? true : window.handleKeyRelease(event.key);
             }
 
+            // Focus leaving the window pauses the game.
+            readonly property bool windowActive: Window.active
+            onWindowActiveChanged: {
+                if (window.debug) console.info("Debug: window " + (windowActive ? "active" : "inactive"));
+                if (!windowActive) window.loseFocus();
+            }
+
             Component.onCompleted: forceActiveFocus()
 
             PixelStage {
@@ -218,13 +399,17 @@ ShellRoot {
                 anchors.fill: parent
                 mode: Settings.mode
                 devicePixelRatio: window.devicePixelRatio
+                scanlines: Settings.scanlines
+                scanlineColor: Theme.darker_background
 
                 // Walls and house: thousands of stroked elements, so this
                 // canvas is rasterised only when the palette, size or mode
-                // changes (Canvas repaints itself on resize).
+                // changes (Canvas repaints itself on resize). Hidden on the
+                // title, which has no board.
                 Canvas {
                     id: backdrop
                     anchors.fill: parent
+                    visible: !window.onTitle
                     renderStrategy: Canvas.Cooperative
                     antialiasing: !stage.arcade
 
@@ -242,8 +427,9 @@ ShellRoot {
                 }
 
                 // Everything that moves: pellets, the ghosts, the player (or
-                // the death animation), the HUD and the debug line, redrawn
-                // every frame over a transparent canvas.
+                // the death animation), the HUD, the overlays and the debug
+                // line, redrawn every frame over a transparent canvas; on the
+                // title, the title screen over its own background.
                 Canvas {
                     id: overlay
                     anchors.fill: parent
@@ -254,9 +440,21 @@ ShellRoot {
                         const ctx = getContext("2d");
                         const palette = window.palette();
                         const state = window.state;
+                        const flow = window.flow;
                         ctx.clearRect(0, 0, width, height);
                         ctx.save();
                         ctx.scale(stage.resolution, stage.resolution);
+                        if (flow.screen === "title") {
+                            ctx.fillStyle = palette.background;
+                            ctx.fillRect(0, 0, stage.nativeWidth, stage.nativeHeight);
+                            Screens.drawTitle(ctx, {
+                                highScore: Settings.highScore,
+                                blinkOn: window.slowBlinkOn,
+                                quitHold: flow.quitHoldTicks / Flow.QUIT_HOLD_TICKS,
+                            }, palette, Theme.fontFamily);
+                            ctx.restore();
+                            return;
+                        }
                         Board.drawPellets(ctx, state.board, palette, window.timeMs);
                         if (window.showGhosts) {
                             // Eyes last so they overlay a ghost standing on the same tile.
@@ -272,8 +470,10 @@ ShellRoot {
                         }
                         if (state.phase === "dying") Sprites.drawDeath(ctx, state.player, state.phaseTicks, palette);
                         else if (state.phase !== "game-over") Sprites.drawPacman(ctx, state.player, palette);
-                        Hud.drawHud(ctx, state, palette, Theme.fontFamily);
+                        Hud.drawHud(ctx, state, palette, Theme.fontFamily, { arcade: stage.arcade, blinkOn: window.blinkOn });
                         Hud.drawEatenScore(ctx, state, palette, Theme.fontFamily);
+                        if (flow.attract) Screens.drawAttractBanner(ctx, window.slowBlinkOn, palette, Theme.fontFamily);
+                        if (flow.screen === "paused") Screens.drawPaused(ctx, palette, Theme.fontFamily);
                         if (window.debug) Hud.drawDebug(ctx, window.debugInfo(), palette, Theme.fontFamily);
                         ctx.restore();
                     }
@@ -292,6 +492,8 @@ ShellRoot {
             function onModeChanged() { backdrop.requestPaint(); }
         }
 
+        // The frame loop always runs; while paused (or on the title, or
+        // during game over) advance() steps the flow's clocks but not the game.
         FrameAnimation {
             id: loop
             running: true
@@ -306,13 +508,15 @@ ShellRoot {
         // Debug key script: one key every 600 ms, starting 1.5 s after launch.
         // A numeric entry replaces the gap before the next key with that many
         // milliseconds (so "Left,150,Down" taps Down 150 ms after Left, and
-        // "Left,3000,Up" waits three seconds). Direction keys are tapped
-        // (pressed and released in the same frame).
+        // "Left,3000,Up" waits three seconds). Keys are tapped (pressed and
+        // released in the same frame), so q never quits from the title this
+        // way; use Escape there.
         Timer {
             id: keyScript
             property int next: 0
             readonly property var names: ({
-                "g": Qt.Key_G, "q": Qt.Key_Q, "Escape": Qt.Key_Escape, "F12": Qt.Key_F12,
+                "g": Qt.Key_G, "q": Qt.Key_Q, "p": Qt.Key_P, "Escape": Qt.Key_Escape, "F12": Qt.Key_F12,
+                "Return": Qt.Key_Return, "Enter": Qt.Key_Return, "Space": Qt.Key_Space,
                 "Up": Qt.Key_Up, "Down": Qt.Key_Down, "Left": Qt.Key_Left, "Right": Qt.Key_Right,
                 "h": Qt.Key_H, "j": Qt.Key_J, "k": Qt.Key_K, "l": Qt.Key_L,
                 "w": Qt.Key_W, "a": Qt.Key_A, "s": Qt.Key_S, "d": Qt.Key_D,
@@ -346,7 +550,7 @@ ShellRoot {
                 const name = window.debugKeys[next++];
                 const key = names[name];
                 console.info("Debug: key " + name + (key === undefined ? " (unknown, ignored)" : "")
-                    + " at tick " + window.state.tick);
+                    + " on " + window.flow.screen + " at tick " + window.state.tick);
                 if (key !== undefined) {
                     window.handleKey(key);
                     window.handleKeyRelease(key);
@@ -372,9 +576,12 @@ ShellRoot {
                     + " scene " + stage.sceneSize.width + "x" + stage.sceneSize.height
                     + " at " + stage.sceneRect.x + "," + stage.sceneRect.y
                     + " box " + stage.sceneRect.width + "x" + stage.sceneRect.height
+                    + " | screen " + window.flow.screen + (window.flow.attract ? "/demo" : "")
+                    + " idle " + window.flow.idleTicks + " title \"" + window.title + "\""
                     + " | tile " + tile.x + "," + tile.y + " pos " + window.state.player.x.toFixed(2) + "," + window.state.player.y.toFixed(2)
                     + " dir " + window.state.player.dir + " want " + window.state.player.wantDir
-                    + " score " + window.state.score + " lives " + window.state.lives + " level " + window.state.level
+                    + " score " + window.state.score + " high " + window.state.highScore
+                    + " lives " + window.state.lives + " level " + window.state.level
                     + " left " + window.state.pelletsLeft + " tick " + window.state.tick
                     + " | phase " + window.state.phase + " mode " + window.state.mode + " clock " + window.state.modeClock
                     + " fright " + window.state.frightTicks + " chain " + window.state.chain
