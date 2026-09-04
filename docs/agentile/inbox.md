@@ -19,3 +19,5 @@ Drop stubs with `/ag-capture <idea>`. Shape them into specs with `/ag-shape`. A 
 - [ ] ASCII/terminal render style as a third graphics mode — v2 — (captured 2026-09-04)
 - [ ] Intermission cutscenes between levels — v2 — (captured 2026-09-04)
 - [ ] High-score table with three-letter initials — v2 — (captured 2026-09-04)
+- [ ] Theme reload retry runs forever when colors.toml can never exist (HOME unset); add backoff or a cap — (captured 2026-09-04)
+- [ ] install-as-plugin must preserve the app/lib and app/assets symlinks (Quickshell blackholes files outside the shell root) — (captured 2026-09-04)

@@ -1,7 +1,8 @@
 ---
 title: "Stand up the app shell: window, theme reader, font, launcher"
 slug: app-shell
-status: in_progress
+status: shipped
+shipped_at: 2026-09-04T02:08:53Z
 depends_on: []
 type: feature
 route: background
@@ -32,7 +33,7 @@ fixes the stack: a standalone Quickshell process.
 - [ ] `assets/fonts/PressStart2P-Regular.ttf` (OFL, licence file beside it) loaded with `FontLoader`; `Theme.fontFamily` resolves to it, falling back to `monospace` if the load fails.
 - [ ] `Escape` or `q` closes the window; the window has keyboard focus on open (a focused `Item` with `Keys` handlers in `Main.qml`).
 - [ ] `manifest.json` at the repo root (`id: com.keithrowell.pacman`, `kinds: []`, `keepLoaded: false`, name, version 0.1.0, author, MIT licence, description) mirrors the Sous pattern so the shell ignores it.
-- [ ] Repo skeleton in place: `app/`, `lib/`, `tests/`, `assets/`, `tools/`, `bin/`, `LICENSE` (MIT), `.gitignore`. `node --test tests/` passes.
+- [ ] Repo skeleton in place: `app/`, `lib/`, `tests/`, `assets/`, `tools/`, `bin/`, `LICENSE` (MIT), `.gitignore`. `node --test tests/*.test.mjs` passes.
 
 ## Scope boundary
 
@@ -42,7 +43,7 @@ fixes the stack: a standalone Quickshell process.
 
 ## Edge cases and failure paths
 
-- `colors.toml` missing or unreadable → defaults (a dark palette) and a `console.warn`, no crash.
+- `colors.toml` missing or unreadable at startup → defaults (a dark palette) and a `console.warn`, no crash. If it vanishes mid-run (theme switches `rm -rf` then `mv` the theme directory), keep the last good palette and retry every 250 ms until it loads again — shipped this way after the reviewer found the watcher was lost in the gap.
 - A theme whose file lacks some keys → fallbacks per the mapping above.
 - Theme file rewritten mid-frame → `FileView` reload is atomic; re-parse on `fileChanged`; the window may flash the old colours for one frame, which is fine.
 - `qs` not on PATH → launcher prints an install hint and exits 1.
@@ -58,5 +59,5 @@ None. The spike in the design session confirmed `FileView`, `FrameAnimation` and
 
 ## Verification
 
-- `node --test tests/` green (theme parser).
+- `node --test tests/*.test.mjs` green (theme parser).
 - Manual: run `bin/pacman`, switch theme twice with `omarchy-theme-set`, confirm recolour; press `q`, window closes.
