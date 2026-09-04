@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "com.keithrowell.pacman",
+  "name": "Pacman",
+  "version": "0.1.0",
+  "author": "Keith Rowell",
+  "license": "MIT",
+  "description": "Pac-Man in its own window, drawn in big arcade pixels and coloured from the live Omarchy theme.",
+  "kinds": [],
+  "keepLoaded": false
+}
