@@ -1,7 +1,7 @@
 ---
 title: Maze data model, board renderer and PixelStage (arcade/smooth toggle)
 slug: maze-and-renderer
-status: ready
+status: in_progress
 depends_on: [app-shell]
 type: feature
 route: background
@@ -9,9 +9,9 @@ business_value: high
 technical_certainty: high
 created: 2026-09-04
 outcome: the full maze renders in theme colours as big pixels (arcade) and crisp vectors (smooth) from one drawing path, and every pellet is reachable
-claimed_by:
-label:
-claimed_at:
+claimed_by: a7420d79-880d-4334-8062-82d6934a6047
+label: 
+claimed_at: 2026-09-04T02:09:01Z
 ---
 
 # Maze data model, board renderer and PixelStage (arcade/smooth toggle)
