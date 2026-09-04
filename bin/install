@@ -1,0 +1,156 @@
+#!/usr/bin/env bash
+# Install Pacman for Omarchy for the current user.
+#
+#   bin/install [--dry-run] [--uninstall]
+#
+# Writes the desktop file the app launcher reads, links an `omarchy-pacman`
+# launcher into ~/.local/bin when that directory exists, and prints (never
+# applies) the entry for ~/.config/omarchy/extensions/omarchy-menu.jsonc.
+# Idempotent: a second run reports "unchanged". Works from this checkout and
+# from the plugin path ~/.config/omarchy/plugins/com.keithrowell.pacman.
+#
+# Nothing called `pacman` is ever put on PATH: that name is the Arch package
+# manager. The in-repo bin/pacman is only ever run by its full path.
+set -euo pipefail
+
+usage() {
+  echo "usage: bin/install [--dry-run] [--uninstall]"
+}
+
+DRY_RUN=0
+UNINSTALL=0
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run) DRY_RUN=1 ;;
+    --uninstall) UNINSTALL=1 ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "install: unknown option '$arg'" >&2; usage >&2; exit 2 ;;
+  esac
+done
+
+ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+LAUNCH="$ROOT/bin/pacman"
+ICON="$ROOT/assets/icon.png"
+# The canonical install location, used for the menu action whatever
+# directory this runs from (the menu file is shared across machines).
+PLUGIN_DIR='~/.config/omarchy/plugins/com.keithrowell.pacman'
+
+DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+APP_DIR="$DATA_HOME/applications"
+DESKTOP="$APP_DIR/Pacman.desktop"
+BIN_DIR="$HOME/.local/bin"
+LAUNCHER="$BIN_DIR/omarchy-pacman"
+
+if [[ ! -x "$LAUNCH" ]]; then
+  echo "install: $LAUNCH is missing or not executable" >&2
+  exit 1
+fi
+
+# Refuse if anything named `pacman` on PATH resolves into this checkout: it
+# would shadow the package manager. This script never creates one; the guard
+# catches a stray symlink made by hand.
+if found="$(command -v pacman 2>/dev/null)"; then
+  case "$(readlink -f "$found")" in
+    "$ROOT"/*)
+      echo "install: '$found' resolves into $ROOT and shadows the Arch package manager; remove it first" >&2
+      exit 1 ;;
+  esac
+fi
+if [[ -e "$BIN_DIR/pacman" || -L "$BIN_DIR/pacman" ]]; then
+  case "$(readlink -f "$BIN_DIR/pacman" || true)" in
+    "$ROOT"/*)
+      echo "install: $BIN_DIR/pacman points into $ROOT and shadows the Arch package manager; remove it first" >&2
+      exit 1 ;;
+  esac
+fi
+
+say() { printf '%s\n' "$*"; }
+would() { if (( DRY_RUN )); then say "$1: would $2"; return 0; else return 1; fi; }
+
+if (( UNINSTALL )); then
+  if [[ -e "$DESKTOP" ]]; then
+    would "desktop file" "remove $DESKTOP" || { rm -f "$DESKTOP"; say "desktop file: removed $DESKTOP"; }
+  else
+    say "desktop file: absent"
+  fi
+  if [[ -L "$LAUNCHER" || -e "$LAUNCHER" ]]; then
+    would "launcher" "remove $LAUNCHER" || { rm -f "$LAUNCHER"; say "launcher: removed $LAUNCHER"; }
+  else
+    say "launcher: absent"
+  fi
+  if (( ! DRY_RUN )) && command -v update-desktop-database >/dev/null 2>&1 && [[ -d "$APP_DIR" ]]; then
+    update-desktop-database "$APP_DIR" >/dev/null 2>&1 || true
+  fi
+  say "The menu entry is not managed here; remove the \"pacman\" entry from"
+  say "~/.config/omarchy/extensions/omarchy-menu.jsonc by hand if you added it."
+  exit 0
+fi
+
+# Desktop file. Exec is double-quoted per the desktop entry spec because the
+# development checkout's path contains a space. No StartupWMClass: every
+# Quickshell window shares the same class.
+desktop_content() {
+  cat <<EOF
+[Desktop Entry]
+Version=1.0
+Name=Pacman
+Comment=Pac-Man in big arcade pixels, coloured from the Omarchy theme
+Exec="$LAUNCH"
+Icon=$ICON
+Terminal=false
+Type=Application
+Categories=Game;ArcadeGame;
+Keywords=pacman;game;arcade;
+StartupNotify=false
+EOF
+}
+
+tmp="$(mktemp)"
+trap 'rm -f "$tmp"' EXIT
+desktop_content >"$tmp"
+
+if [[ -f "$DESKTOP" ]] && cmp -s "$tmp" "$DESKTOP"; then
+  say "desktop file: unchanged $DESKTOP"
+elif ! would "desktop file" "write $DESKTOP"; then
+  mkdir -p "$APP_DIR"
+  cp "$tmp" "$DESKTOP"
+  chmod 0644 "$DESKTOP"
+  say "desktop file: written $DESKTOP"
+  if command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database "$APP_DIR" >/dev/null 2>&1 || true
+  fi
+fi
+
+# Optional PATH launcher, only when ~/.local/bin already exists.
+if [[ -d "$BIN_DIR" ]]; then
+  if [[ -L "$LAUNCHER" && "$(readlink "$LAUNCHER")" == "$LAUNCH" ]]; then
+    say "launcher: unchanged $LAUNCHER -> $LAUNCH"
+  elif ! would "launcher" "link $LAUNCHER -> $LAUNCH"; then
+    ln -sfn "$LAUNCH" "$LAUNCHER"
+    say "launcher: linked $LAUNCHER -> $LAUNCH"
+  fi
+else
+  say "launcher: skipped ($BIN_DIR does not exist; create it to get an omarchy-pacman command)"
+fi
+
+# Menu entry: printed, never applied. The menu file lives in the dotfiles repo.
+if command -v uwsm-app >/dev/null 2>&1; then
+  action="uwsm-app -- $PLUGIN_DIR/bin/pacman"
+  uwsm_note=""
+else
+  action="$PLUGIN_DIR/bin/pacman"
+  uwsm_note=" (uwsm-app is not on PATH, so the action launches the game directly)"
+fi
+
+say ""
+say "Add this entry to ~/.config/omarchy/extensions/omarchy-menu.jsonc (not applied)$uwsm_note"
+say ""
+cat <<EOF
+  "pacman": {
+    "icon": "󰊴",
+    "label": "Pacman",
+    "description": "Pac-Man in big arcade pixels, coloured from the Omarchy theme",
+    "aliases": ["pacman", "game", "arcade"],
+    "action": "$action"
+  }
+EOF
