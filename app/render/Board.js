@@ -124,9 +124,11 @@ function drawHouse(ctx, house, palette) {
     roundedRect(ctx, x + inner, y + inner, w - 2 * inner, h - 2 * inner, STYLES[1].radius, doorX0, doorX1);
     ctx.stroke();
 
-    // The door: a flat bar spanning the gap between the two lines.
+    // The door: a flat bar filling the two whole pixel rows between the two
+    // lines (which sit on rows 2 and 5). Fills must align to whole pixels;
+    // the .5 offsets are only for 1-px strokes.
     ctx.fillStyle = palette.door;
-    ctx.fillRect(doorX0, y + outer + 1, doorX1 - doorX0, inner - outer - 2);
+    ctx.fillRect(doorX0, y + Math.ceil(outer), doorX1 - doorX0, Math.floor(inner) - Math.ceil(outer));
 }
 
 function drawWalls(ctx, maze, palette) {

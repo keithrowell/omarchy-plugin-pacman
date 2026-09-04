@@ -194,6 +194,14 @@ test("tileAt wraps x and treats y off-map as wall", () => {
   assert.equal(tileAt(maze, 5, 31), TILE.WALL);
 });
 
+test("tileAt floors fractional coordinates and treats non-numbers as wall", () => {
+  assert.equal(tileAt(maze, 13.7, 23.2), tileAt(maze, 13, 23));
+  assert.equal(tileAt(maze, -0.5, 14), TILE.TUNNEL);
+  assert.equal(tileAt(maze, NaN, 14), TILE.WALL);
+  assert.equal(tileAt(maze, 5, undefined), TILE.WALL);
+  assert.equal(tileAt(maze, 5, 30.9), TILE.WALL);
+});
+
 test("isWalkable covers pellet, power, empty and tunnel only", () => {
   assert.ok(isWalkable(TILE.PELLET));
   assert.ok(isWalkable(TILE.POWER));

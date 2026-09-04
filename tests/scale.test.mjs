@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { fitArcade, fitSmooth, NATIVE_WIDTH, NATIVE_HEIGHT } from "../lib/scale.mjs";
+import { fitArcade, fitSmooth, saneDpr, NATIVE_WIDTH, NATIVE_HEIGHT } from "../lib/scale.mjs";
 
 test("native size is the arcade 224x248", () => {
   assert.equal(NATIVE_WIDTH, 224);
@@ -76,4 +76,13 @@ test("fitSmooth is fractional and independent of dpr", () => {
 test("fitSmooth shrinks below 1 when the window is smaller than native", () => {
   const fit = fitSmooth(112, 124, 1);
   assert.equal(fit.scale, 0.5);
+});
+
+test("fitArcade treats a missing, non-finite or sub-1 dpr as 1", () => {
+  const ref = fitArcade(672, 864, 1);
+  for (const bad of [undefined, null, NaN, Infinity, 0, -2, 0.5, "1.6"]) {
+    assert.deepEqual(fitArcade(672, 864, bad), ref, `dpr ${String(bad)}`);
+  }
+  assert.equal(saneDpr(1.6), 1.6);
+  assert.equal(saneDpr(1), 1);
 });

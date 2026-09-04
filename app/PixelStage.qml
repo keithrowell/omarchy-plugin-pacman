@@ -6,15 +6,20 @@ import "lib/scale.mjs" as Scale
 // or as a crisp full-resolution drawing (smooth). Contains no game knowledge:
 // it could be lifted out as a reusable component.
 //
-// Arcade: the scene is laid out at native size and rendered through a layer
-// whose texture is exactly native-sized, then scaled up with nearest-neighbour
-// sampling by an integer number of *device* pixels per native pixel (k), so
-// blocks stay square under fractional compositor scaling. Letterboxed and
+// Arcade: the scene is rendered through a layer whose texture is exactly
+// native-sized, then scaled up with nearest-neighbour sampling by an integer
+// number of *device* pixels per native pixel (k), so blocks stay square under
+// fractional compositor scaling. Children such as Canvas rasterise at item
+// size x device pixel ratio, so the scene is laid out at native / dpr logical
+// pixels: the canvas raster is then exactly native-sized and lands 1:1 in the
+// layer texture with no resampling (laying it out at native size made the
+// canvas raster 1.6x too big and the layer blurred it down). Letterboxed and
 // centred; the parent's colour shows through the borders.
 //
 // Smooth: no layer. The scene is laid out at the fitted size so children
-// rasterise at full resolution; content draws in native units multiplied by
-// `resolution`.
+// rasterise at full resolution.
+//
+// Either way, content draws in native units multiplied by `resolution`.
 Item {
     id: root
 
@@ -38,9 +43,13 @@ Item {
     readonly property real zoom: fit.scale
     // Integer device pixels per native pixel in arcade mode; equals zoom * dpr.
     readonly property int blockSize: arcade ? fit.k : 0
-    // Layout units per native unit inside the scene: 1 in arcade mode (the
-    // layer does the enlarging), the fitted scale in smooth mode.
-    readonly property real resolution: arcade ? 1 : fit.scale
+    // Layout units per native unit inside the scene: 1 / dpr in arcade mode
+    // (one native unit is one device pixel; the layer does the enlarging), the
+    // fitted scale in smooth mode.
+    readonly property real resolution: arcade ? 1 / devicePixelRatio : fit.scale
+    // The scene's on-screen box in logical pixels (for debugging the fit).
+    readonly property rect sceneRect: Qt.rect(scene.x, scene.y, scene.width * scene.scale, scene.height * scene.scale)
+    readonly property size sceneSize: Qt.size(scene.width, scene.height)
 
     clip: true
 
@@ -51,7 +60,8 @@ Item {
         width: root.nativeWidth * root.resolution
         height: root.nativeHeight * root.resolution
         transformOrigin: Item.TopLeft
-        scale: root.arcade ? root.fit.scale : 1
+        // Arcade: native / dpr logical px * k = native * k device px.
+        scale: root.arcade ? root.fit.k : 1
 
         layer.enabled: root.arcade
         layer.textureSize: Qt.size(root.nativeWidth, root.nativeHeight)

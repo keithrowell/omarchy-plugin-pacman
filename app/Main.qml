@@ -188,7 +188,10 @@ ShellRoot {
             onTriggered: {
                 console.info("Debug: fps " + window.frames + " mode " + stage.mode
                     + " zoom " + stage.zoom + " block " + stage.blockSize
-                    + " dpr " + stage.devicePixelRatio);
+                    + " dpr " + stage.devicePixelRatio + " stage " + stage.width + "x" + stage.height
+                    + " scene " + stage.sceneSize.width + "x" + stage.sceneSize.height
+                    + " at " + stage.sceneRect.x + "," + stage.sceneRect.y
+                    + " box " + stage.sceneRect.width + "x" + stage.sceneRect.height);
                 window.frames = 0;
             }
         }
