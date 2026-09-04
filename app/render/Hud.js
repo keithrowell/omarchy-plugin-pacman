@@ -27,6 +27,9 @@ var LIFE_MOUTH = 35 * Math.PI / 180;
 var LEVEL_RIGHT = 216;
 var LEVEL_Y = 280;
 
+// MUTE / NO AUDIO, right-aligned on the top row.
+var STATUS_RIGHT = 216;
+
 // READY! and GAME OVER sit on the empty moat row below the house (maze row
 // 17), centred, as the original's do below its house.
 var MESSAGE_X = 112;
@@ -44,11 +47,14 @@ function fontString(family) {
  * 1UP and the score top-left, HIGH SCORE and its value top-centre, the
  * spare lives (lives - 1) bottom-left, LEVEL n bottom-right, and READY! or
  * GAME OVER on the board while the phase says so. `palette` needs
- * { text, pacman, ready, gameOver }. `opts` (optional) is { arcade, blinkOn }:
- * in arcade mode 1UP blinks, drawn only while blinkOn; otherwise it is steady.
+ * { text, muted, pacman, ready, gameOver }. `opts` (optional) is
+ * { arcade, blinkOn, muted, audio }: in arcade mode 1UP blinks, drawn only
+ * while blinkOn, otherwise it is steady; MUTE sits top-right while muted, or
+ * NO AUDIO when audio is false (no device), in the muted colour.
  */
 function drawHud(ctx, state, palette, family, opts) {
     var showOneUp = !opts || !opts.arcade || opts.blinkOn;
+    var status = !opts ? "" : opts.audio === false ? "NO AUDIO" : opts.muted ? "MUTE" : "";
     ctx.save();
     ctx.font = fontString(family);
     ctx.textBaseline = "top";
@@ -62,6 +68,12 @@ function drawHud(ctx, state, palette, family, opts) {
     ctx.fillText(String(state.score), SCORE_RIGHT, FONT_PX);
     ctx.fillText(String(state.highScore), HIGH_SCORE_RIGHT, FONT_PX);
     ctx.fillText("LEVEL " + state.level, LEVEL_RIGHT, LEVEL_Y);
+
+    if (status !== "") {
+        ctx.fillStyle = palette.muted;
+        ctx.fillText(status, STATUS_RIGHT, 0);
+        ctx.fillStyle = palette.text;
+    }
 
     ctx.fillStyle = palette.pacman;
     for (var i = 0; i < state.lives - 1; i++) {

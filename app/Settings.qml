@@ -14,6 +14,7 @@ QtObject {
 
     property string mode: SettingsLib.SETTINGS_DEFAULTS.mode
     property bool scanlines: SettingsLib.SETTINGS_DEFAULTS.scanlines
+    property bool muted: SettingsLib.SETTINGS_DEFAULTS.muted
     property int highScore: 0
 
     readonly property string dir: Quickshell.env("HOME") + "/.local/state/pacman"
@@ -24,10 +25,11 @@ QtObject {
         const next = SettingsLib.parseSettings(text);
         mode = next.mode;
         scanlines = next.scanlines;
+        muted = next.muted;
     }
 
     function save() {
-        settingsFile.setText(SettingsLib.serialiseSettings({ mode: mode, scanlines: scanlines }));
+        settingsFile.setText(SettingsLib.serialiseSettings({ mode: mode, scanlines: scanlines, muted: muted }));
     }
 
     function setMode(value) {
@@ -41,6 +43,11 @@ QtObject {
 
     function toggleScanlines() {
         scanlines = !scanlines;
+        save();
+    }
+
+    function toggleMuted() {
+        muted = !muted;
         save();
     }
 
