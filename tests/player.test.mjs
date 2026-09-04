@@ -121,6 +121,20 @@ test("a new press replaces the buffered direction", () => {
   assert.equal(p.wantDir, "down");
 });
 
+test("holding the current direction does not cancel a buffered turn", () => {
+  let p = at(6, 4, "left");
+  p = stepPlayer(p, maze, "up", SPEED_1, TICK).player; // tap up
+  let turned = null;
+  for (let i = 0; i < 100 && turned === null; i++) {
+    p = stepPlayer(p, maze, "left", SPEED_1, TICK).player; // keep holding left
+    if (p.dir === "up") turned = { x: p.x, y: p.y };
+    else assert.equal(p.wantDir, "up", `buffer kept at tick ${i}`);
+  }
+  assert.ok(turned, "the tapped pre-turn is still taken");
+  assert.equal(turned.x, centre(4));
+  assert.ok(turned.y < centre(4));
+});
+
 test("reversal is immediate mid-tile, without a snap", () => {
   let p = run(createPlayer(maze), 3, null).player;
   const before = p.x;
