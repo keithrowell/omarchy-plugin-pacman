@@ -217,3 +217,18 @@ blue, magenta, background only).
 Amend ADR-0002 (one line, dated): the native stage is 224×288 — the 224×248
 maze plus the original's three HUD rows above and two below — and game
 coordinates remain maze-relative. No new ADR.
+
+## As built (recorded at ship)
+
+- Full clear scores 2,760 (256×10 + 4×50); the 3,000 above was an arithmetic slip.
+- Buffering rules live in one exported `bufferWant(player, wantDir)` in
+  `player.mjs`, used by both `stepPlayer` and the pause branch in `game.mjs`.
+  The reviewer found the pause path clobbering a tapped pre-turn while a
+  direction key was held; every pellet is a pause tick, so it always bit.
+- Asking for the current direction is a no-op on the buffer, so "hold left,
+  tap up" keeps the up pre-turn.
+- `Main.qml` keeps a pending press so a sub-frame tap still reaches the game.
+- Events carry `tile` (`{ type: "pellet", tile: {x, y} }`), a superset of the
+  spec's contract.
+- Debug line at x = 64 so it does not clip.
+- `Board.drawBoard` was removed; the backdrop and pellet overlay are the API.

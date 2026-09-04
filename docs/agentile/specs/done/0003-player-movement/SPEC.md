@@ -1,7 +1,8 @@
 ---
 title: Player movement, pellet eating and score HUD
 slug: player-movement
-status: in_progress
+status: shipped
+shipped_at: 2026-09-04T03:40:47Z
 depends_on: [maze-and-renderer]
 type: feature
 route: background
@@ -30,7 +31,7 @@ cornering, constant speed, tunnel wrap. It also establishes the pure game loop
 - [ ] Side tunnels wrap the player to the opposite edge; the player is drawn partially on both sides while crossing.
 - [ ] Eating: pellet → `+10`, power pellet → `+50`, tile becomes empty; `events` include `{ type: "pellet" }`, `{ type: "power" }`, `{ type: "level-clear" }` when the last pellet goes.
 - [ ] Sprite: `app/render/Sprites.js` draws Pac-Man in `Theme.yellow` as a 13-px wedge in native units, mouth angle cycling through closed/half/open by distance travelled, facing the movement direction. The same routine serves both stage modes (ADR-0002).
-- [ ] HUD in the pixel font: `1UP` and score top-left, `HIGH SCORE` top-centre (value 0 for now), three life icons bottom-left, all from `Theme`.
+- [ ] HUD in the pixel font: `1UP` and score top-left, `HIGH SCORE` top-centre (value 0 for now), spare-life icons bottom-left (`lives − 1`, as the original shows spare lives — amended at ship, per plan), all from `Theme`.
 - [ ] Debug overlay (`PACMAN_DEBUG=1`): fps, tile coords, wanted direction.
 
 ## Scope boundary
@@ -56,5 +57,5 @@ None.
 
 ## Verification
 
-- `node --test tests/`: scripted input sequences traverse the maze; pellet count reaches zero and `level-clear` fires; wall collision never occurs across the speed table.
+- `node --test tests/*.test.mjs`: scripted input sequences traverse the maze; pellet count reaches zero and `level-clear` fires; wall collision never occurs across the speed table.
 - Manual: play a full pellet clear in both styles.

@@ -25,3 +25,6 @@ Drop stubs with `/ag-capture <idea>`. Shape them into specs with `/ag-shape`. A 
 - [ ] F12 debug grab should count off-palette pixels and log it, so a blurred arcade texture is caught automatically — (captured 2026-09-04)
 - [ ] XDG_STATE_HOME support for Theme and Settings paths (HOME unset gives "undefined/…") — (captured 2026-09-04)
 - [ ] Non-Hyprland DPR source for PixelStage if the app ever runs outside Omarchy — (captured 2026-09-04)
+- [ ] Clear held direction keys when the window loses focus (workspace switch mid-hold keeps Pac-Man moving) — (captured 2026-09-04)
+- [ ] Tune CORNER_TOLERANCE once ghosts land: a press just after a tile centre snaps up to 4 px backwards, a small visible hop — (captured 2026-09-04)
+- [ ] Debug overlay line overlaps the lives row once lives > 3 — (captured 2026-09-04)
