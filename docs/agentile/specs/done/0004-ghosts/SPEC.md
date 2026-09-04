@@ -1,7 +1,8 @@
 ---
 title: Four ghosts with classic behaviour, lives and level progression
 slug: ghosts
-status: in_progress
+status: shipped
+shipped_at: 2026-09-04T04:33:00Z
 depends_on: [player-movement]
 type: feature
 route: background
@@ -59,5 +60,5 @@ faithful, not in discovering them.
 
 ## Verification
 
-- `node --test tests/` covering each rule; determinism test.
+- `node --test tests/*.test.mjs` covering each rule; determinism test.
 - Manual: play until game over; eat a full chain of four ghosts; clear level 1 and confirm level 2 speeds.

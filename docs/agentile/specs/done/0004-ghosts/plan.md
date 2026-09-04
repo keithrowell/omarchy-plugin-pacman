@@ -314,3 +314,20 @@ magenta, cyan, orange, bright_foreground).
 
 None. The rules are the original's, and the architecture decisions (pure
 `step`, single renderer) are already recorded.
+
+## As built (recorded at ship)
+
+- Extra ghost state `entering` for the eyes' scripted drop through the door.
+- House ghosts are left untouched by a power pellet and emerge `normal`
+  (satisfies the spec edge case; the arcade turns them blue — fidelity stub).
+- Flash cadence is 12-tick halves so five flashes fill the last two seconds.
+- READY! / GAME OVER sit on the empty moat row (maze y 136, stage y 160).
+- Global dot counter deactivates at level start; Elroy Blinky chases during
+  scatter; eyes ignore the tunnel slowdown; the tunnel zone is the whole open
+  run to each edge on the tunnel row.
+- Debug key script: a numeric entry now replaces the gap before the next key.
+- Extra events beyond the spec: `mode`, `ghost-exit`, `level-start`, `ready`,
+  `extra-life`; `ghost-eaten` carries `score` and `ghost`.
+- The no-up tiles at (12,11) and (15,11) sit under wall on this maze, so the
+  rule is vacuous there; the real row-11 up-junctions are at cols 9 and 18.
+- `frame-ghosts.png` was grabbed under the decorative-stitch theme.
