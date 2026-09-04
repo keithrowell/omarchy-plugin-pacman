@@ -212,3 +212,21 @@ overlay copied to the spec directory as `frame-title.png` and
 ## ADR
 
 None.
+
+## As built (recorded at ship)
+
+- `s` toggles scanlines only where movement keys are inactive (title,
+  paused, gameover, demo); during play it is WASD down. The title hint says so.
+- Focus-loss auto-pause is skipped for the whole session when a
+  `PACMAN_DEBUG_KEYS` script was given (a stray click paused an unattended
+  run); the reviewer asked for it to be narrowed to "while the script runs".
+- The attract generator uses `ready: true` like playback so the replay is
+  tick-aligned; the committed script ends by the 2,400-tick cap in `playing`,
+  handled by an `attract-end` action.
+- `attractValid` takes the maze text (the checksum is over the text).
+- Title hints are on two lines; the quit bar sits at y 248.
+- The high score is also saved on `q` mid-game.
+- The frame loop keeps running while paused (only `step` stops); restarting
+  `FrameAnimation` would burst up to 250 ms of ticks on resume.
+- Grabs were taken under the decorative-stitch theme, whose cyan equals its
+  accent, so Inky merges with the title colour there.

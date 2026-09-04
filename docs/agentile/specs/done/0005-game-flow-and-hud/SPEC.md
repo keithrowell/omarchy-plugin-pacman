@@ -1,7 +1,8 @@
 ---
 title: Title screen, ready/pause/game-over flow, high score and retro polish
 slug: game-flow-and-hud
-status: in_progress
+status: shipped
+shipped_at: 2026-09-04T05:08:58Z
 depends_on: [ghosts]
 type: feature
 route: background
@@ -29,7 +30,7 @@ a persisted high score, and the last touches of arcade feel.
 - [ ] READY!: 2 s beat with the board drawn, ghosts in the house, "READY!" in `Theme.yellow`, then play. "GAME OVER" in `Theme.red` for 3 s before returning to title.
 - [ ] High score persisted in `~/.local/state/pacman/highscore.json` via `lib/settings.mjs`; updated at game over and on level clear; shown in the HUD live when beaten.
 - [ ] Pause overlay dims the board (`Theme.background` at 60 % alpha) with "PAUSED"; the loop and sounds stop.
-- [ ] Retro polish, arcade style only: 1UP blink at 250 ms; optional scanline overlay toggled with `s` (persisted) drawn as 1-px lines at 15 % alpha of `Theme.darker_background`; the smooth mode ignores both. Scanlines are drawn in `PixelStage` above the upscaled layer, not in native units.
+- [ ] Retro polish, arcade style only: 1UP blink at 250 ms; optional scanline overlay toggled with `s` (persisted; `s` is also WASD "down", so the toggle works on the title, pause, game-over and demo screens only — resolved at plan, recorded at ship) drawn as 1-px lines at 15 % alpha of `Theme.darker_background`; the smooth mode ignores both. Scanlines are drawn in `PixelStage` above the upscaled layer, not in native units.
 - [ ] Window title reflects state: `Pacman`, `Pacman — paused`.
 
 ## Scope boundary
@@ -54,5 +55,5 @@ None.
 
 ## Verification
 
-- `node --test tests/` green.
+- `node --test tests/*.test.mjs` green.
 - Manual: full session title → play → game over → title; restart and see the high score; focus-out pauses.
