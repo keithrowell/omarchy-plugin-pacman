@@ -85,6 +85,8 @@ QtObject {
     }
 
     onMutedChanged: {
+        if (debug) console.info("Debug: sfx " + (muted ? "muted" : "unmuted") + (currentLoop !== "" ? ", stopping " + currentLoop : "")
+            + (!muted && wantedLoop !== "" ? ", resuming " + wantedLoop : ""));
         if (muted) for (const name of names) effects[name].stop();
         applyLoop();
     }
