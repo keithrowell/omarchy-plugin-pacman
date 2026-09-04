@@ -1,7 +1,7 @@
 ---
 title: Title screen, ready/pause/game-over flow, high score and retro polish
 slug: game-flow-and-hud
-status: ready
+status: in_progress
 depends_on: [ghosts]
 type: feature
 route: background
@@ -9,9 +9,9 @@ business_value: medium
 technical_certainty: high
 created: 2026-09-04
 outcome: the game runs as a complete loop from title to game over and back with the high score surviving a restart
-claimed_by:
-label:
-claimed_at:
+claimed_by: a7420d79-880d-4334-8062-82d6934a6047
+label: 
+claimed_at: 2026-09-04T04:33:00Z
 ---
 
 # Title screen, ready/pause/game-over flow, high score and retro polish
