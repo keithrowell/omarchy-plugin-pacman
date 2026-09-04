@@ -1,7 +1,7 @@
 ---
 title: Player movement, pellet eating and score HUD
 slug: player-movement
-status: ready
+status: in_progress
 depends_on: [maze-and-renderer]
 type: feature
 route: background
@@ -9,9 +9,9 @@ business_value: high
 technical_certainty: high
 created: 2026-09-04
 outcome: Pac-Man moves through the whole maze under keyboard control and clears every pellet, with the score climbing correctly
-claimed_by:
-label:
-claimed_at:
+claimed_by: a7420d79-880d-4334-8062-82d6934a6047
+label: 
+claimed_at: 2026-09-04T03:08:35Z
 ---
 
 # Player movement, pellet eating and score HUD
