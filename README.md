@@ -18,7 +18,7 @@ belongs to the desktop, and recolours itself when the theme changes.
 | `q` | In a game: quit at once. On the title: hold for a second to quit |
 | `g` | Toggle arcade (big pixels) and smooth (full resolution) graphics |
 | `s` | Toggle scanlines (on the title, pause and game-over screens) |
-| `m` | Mute and unmute (remembered; MUTE shows top-right while muted) |
+| `m` | Mute and unmute (remembered; MUTE shows in the top-right corner while muted) |
 | F12 | Save a frame to `~/.local/state/pacman/frame.png` (only with `PACMAN_DEBUG=1`) |
 
 Any game key ends the attract demo (`g`, `m` and F12 do not). The high score, the graphics settings and

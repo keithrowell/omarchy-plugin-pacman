@@ -27,8 +27,10 @@ var LIFE_MOUTH = 35 * Math.PI / 180;
 var LEVEL_RIGHT = 216;
 var LEVEL_Y = 280;
 
-// MUTE / NO AUDIO, right-aligned on the top row.
+// MUTE / NO AUDIO, right-aligned on row 1 (row 0 is full: HIGH SCORE ends
+// at 152, where NO AUDIO would start).
 var STATUS_RIGHT = 216;
+var STATUS_Y = FONT_PX;
 
 // READY! and GAME OVER sit on the empty moat row below the house (maze row
 // 17), centred, as the original's do below its house.
@@ -49,8 +51,8 @@ function fontString(family) {
  * GAME OVER on the board while the phase says so. `palette` needs
  * { text, muted, pacman, ready, gameOver }. `opts` (optional) is
  * { arcade, blinkOn, muted, audio }: in arcade mode 1UP blinks, drawn only
- * while blinkOn, otherwise it is steady; MUTE sits top-right while muted, or
- * NO AUDIO when audio is false (no device), in the muted colour.
+ * while blinkOn, otherwise it is steady; MUTE sits top-right (row 1) while
+ * muted, or NO AUDIO when audio is false (no device), in the muted colour.
  */
 function drawHud(ctx, state, palette, family, opts) {
     var showOneUp = !opts || !opts.arcade || opts.blinkOn;
@@ -71,7 +73,7 @@ function drawHud(ctx, state, palette, family, opts) {
 
     if (status !== "") {
         ctx.fillStyle = palette.muted;
-        ctx.fillText(status, STATUS_RIGHT, 0);
+        ctx.fillText(status, STATUS_RIGHT, STATUS_Y);
         ctx.fillStyle = palette.text;
     }
 
