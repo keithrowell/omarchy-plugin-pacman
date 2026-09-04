@@ -1,5 +1,5 @@
 ---
-title: Ship it as an Omarchy plugin: menu entry, desktop file, dotfiles submodule, README
+title: "Ship it as an Omarchy plugin: menu entry, desktop file, dotfiles submodule, README"
 slug: install-as-plugin
 status: ready
 depends_on: [sound, game-flow-and-hud]

@@ -1,5 +1,5 @@
 ---
-title: Stand up the app shell: window, theme reader, font, launcher
+title: "Stand up the app shell: window, theme reader, font, launcher"
 slug: app-shell
 status: ready
 depends_on: []
