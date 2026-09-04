@@ -791,3 +791,124 @@ test("ghost speeds by state: house and leaving at half, tunnel slows the living,
   const l5 = fresh({ level: 5 });
   assert.equal(ghostSpeedFor(l5, ghostAt("inky", 1, 4, "left", "normal")), ghostSpeed(5));
 });
+
+// --- Level clear, determinism, purity -----------------------------------
+
+/** A level-1 game with every pellet gone but the one at (12,23), next to the spawn. */
+function lastPellet(opts) {
+  const s = fresh(opts);
+  const tiles = s.board.tiles.map(t => (t === TILE.PELLET || t === TILE.POWER ? TILE.EMPTY : t));
+  tiles[23 * s.board.width + 12] = TILE.PELLET;
+  return Object.assign({}, s, { board: Object.assign({}, s.board, { tiles }), pelletsLeft: 1, score: 2750 });
+}
+
+test("the last pellet starts the level-clear flash: 120 frozen ticks, then level 2 with the board and positions reset", () => {
+  const s = withGhost(lastPellet(), "blinky", { x: centre(26), y: centre(1), dir: "left" });
+  const r = run(s, 8);
+  const clear = r.events.find(e => e.type === "level-clear");
+  assert.ok(clear, "level-clear event");
+  const atClear = run(s, clear.tick - s.tick).state;
+  assert.equal(atClear.phase, "level-clear");
+  assert.equal(atClear.cleared, true);
+  assert.equal(atClear.phaseTicks, 0);
+  assert.equal(atClear.pelletsLeft, 0);
+  assert.equal(atClear.score, 2760);
+  const flashing = run(atClear, LEVEL_CLEAR_TICKS - 1);
+  assert.deepEqual(flashing.events, []);
+  assert.equal(flashing.state.phase, "level-clear");
+  assert.equal(flashing.state.phaseTicks, LEVEL_CLEAR_TICKS - 1);
+  assert.deepEqual(flashing.state.ghosts, atClear.ghosts, "ghosts freeze");
+  assert.equal(flashing.state.player.x, atClear.player.x);
+  const next = step(flashing.state, { wantDir: "up" }, TICK);
+  assert.deepEqual(next.events, [{ type: "level-start", level: 2 }]);
+  const l2 = next.state;
+  assert.equal(l2.level, 2);
+  assert.equal(l2.phase, "ready");
+  assert.equal(l2.cleared, false);
+  assert.equal(l2.pelletsLeft, 260);
+  assert.deepEqual(l2.board.tiles, maze.tiles);
+  assert.equal(l2.score, 2760, "score carries");
+  assert.equal(l2.lives, 3);
+  assert.deepEqual(l2.player, createPlayer(maze));
+  assert.deepEqual(l2.ghosts, createGhosts(maze));
+  assert.equal(l2.mode, "scatter");
+  assert.equal(l2.modeClock, 0);
+  assert.deepEqual(l2.globalDots, { active: false, count: 0 });
+  // Level 2 speeds and tables are in use once play resumes.
+  const playing = run(l2, READY_TICKS).state;
+  assert.equal(playing.phase, "playing");
+  const moved = run(playing, 1).state;
+  const px = playing.player.x - moved.player.x;
+  assert.ok(Math.abs(px - playerSpeed(2) * TILE_PX * TICK) < 1e-9, `level 2 player speed, moved ${px}`);
+  assert.equal(ghostSpeedFor(playing, ghostNamed(playing, "blinky")), ghostSpeed(2));
+  assert.equal(ghostNamed(run(playing, 2).state, "inky").state, "leaving", "level 2: Inky's limit is 0");
+});
+
+test("level 2 clears into level 3, and the frightened time follows the level", () => {
+  const s = lastPellet({ level: 2, ghosts: false });
+  const r = run(s, 8 + LEVEL_CLEAR_TICKS);
+  assert.deepEqual(r.events.filter(e => e.type === "level-start").map(e => e.level), [3]);
+  assert.equal(r.state.level, 3);
+  const l3 = withPlayer(run(r.state, READY_TICKS).state, { x: centre(1), y: centre(4) - 3.5, dir: "up" });
+  const p = step(Object.assign({}, l3, { pauseTicks: 0 }), { wantDir: null }, TICK).state;
+  assert.equal(p.frightTicks, frightenedTicks(3));
+});
+
+test("determinism: seed 7 and a 3000-tick scripted game twice give identical event logs and final states", () => {
+  const script = ["left", "left", "up", null, "down", "right", null, "right", "up", "left", null, "down"];
+  const want = i => script[Math.floor(i / 37) % script.length];
+  const play = () => {
+    const r = run(createState(maze, { seed: 7 }), 3000, want);
+    return { events: r.events, state: r.state };
+  };
+  const a = play();
+  const b = play();
+  assert.deepStrictEqual(a.events, b.events);
+  assert.deepStrictEqual(a.state, b.state);
+  assert.ok(a.events.some(e => e.type === "pellet"));
+  assert.ok(a.events.some(e => e.type === "mode"), "the mode flipped during the run");
+  assert.ok(a.events.some(e => e.type === "ghost-exit"));
+  assert.notEqual(a.state.rng, seed(7), "the RNG was used");
+  const other = run(createState(maze, { seed: 8 }), 3000, want);
+  assert.notDeepStrictEqual(other.state.ghosts, a.state.ghosts, "another seed plays differently once ghosts were frightened or died");
+});
+
+test("step never mutates its arguments: a deep-frozen state survives 1500 ticks of play", () => {
+  function deepFreeze(o) {
+    if (o && typeof o === "object" && !Object.isFrozen(o)) {
+      Object.freeze(o);
+      for (const k of Object.keys(o)) deepFreeze(o[k]);
+    }
+    return o;
+  }
+  let s = deepFreeze(createState(maze, { seed: 3 }));
+  const input = deepFreeze({ wantDir: "up" });
+  for (let i = 0; i < 1500; i++) {
+    const a = step(s, input, TICK);
+    const b = step(s, input, TICK);
+    assert.deepStrictEqual(a, b);
+    s = deepFreeze(a.state);
+  }
+  assert.ok(s.tick === 1500);
+});
+
+test("level 21: no frightened time, no NaN, no throw through 2000 ticks of autopilot", () => {
+  const script = ["left", "up", "right", "down", null, "left", "down", "up"];
+  const r = run(createState(maze, { level: 21, ready: false, seed: 5 }), 2000, i => script[Math.floor(i / 23) % script.length]);
+  assert.equal(r.state.frightTicks, 0);
+  for (const e of r.events) assert.notEqual(e.type, "ghost-eaten");
+  const s = r.state;
+  for (const g of s.ghosts) {
+    assert.ok(Number.isFinite(g.x) && Number.isFinite(g.y), `${g.name} at ${g.x},${g.y}`);
+    assert.notEqual(g.state, "frightened");
+  }
+  assert.ok(Number.isFinite(s.player.x) && Number.isFinite(s.player.y));
+  assert.ok(Number.isFinite(s.score));
+  // A power pellet at level 21 reverses only.
+  const p = withPlayer(fresh({ level: 21 }), { x: centre(1), y: centre(4) - 3.5, dir: "up" });
+  const after = step(p, { wantDir: null }, TICK).state;
+  assert.equal(after.frightTicks, 0);
+  assert.equal(after.score, 50);
+  assert.equal(ghostNamed(after, "blinky").reverse, true);
+  assert.equal(ghostNamed(after, "blinky").state, "normal");
+});
