@@ -125,9 +125,10 @@ device pixels per block. `fitSmooth` returns `min(w/nw, h/nh)` and centring.
 `Main.qml` passes `Screen.devicePixelRatio` (import `QtQuick.Window`; use
 `window.screen` if `Screen` is not attached under Quickshell). If `dpr` is 1.6
 and the texture is 224×248 with `layer.smooth: false`, verify with the F12 grab
-that blocks are exactly `k` device pixels; if Qt renders the layer at
-`textureSize × dpr` instead, set `layer.textureSize` to the native size divided
-by `dpr` … no: keep native and set `layer.samples: 0`; measure and note what worked.
+that blocks are exactly `k` device pixels. If Qt turns out to rasterise the
+layer at `textureSize × dpr` rather than at `textureSize`, the fix belongs in
+`PixelStage` alone (adjust `layer.textureSize` or the scale so one native pixel
+is still an integer number of device pixels); measure, fix, and record what worked.
 The stage fills its parent, paints nothing itself (the window's background is
 `Theme.background`, which is the letterbox colour). Window smaller than native →
 `k = 1` and the scene is clipped by `clip: true` on the stage.
