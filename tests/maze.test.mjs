@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { LEVEL_1 } from "../lib/maze-data.mjs";
+import { LEVEL_1, NO_UP_TILES, SCATTER_TARGETS } from "../lib/maze-data.mjs";
 import { parseMaze, tileAt, isWalkable, wallMask, TILE } from "../lib/maze.mjs";
 
 const maze = parseMaze(LEVEL_1);
@@ -236,6 +236,15 @@ test("wallMask: bit 0 is north, clockwise; a buried tile is 0xff", () => {
   assert.equal(wallMask(m, 5, 10), (1 << 2) | (1 << 3) | (1 << 4));
   // Map corner (0,0): off-map counts as wall; E and S are wall (border), SE is open.
   assert.equal(wallMask(m, 0, 0), 0xff & ~(1 << 3));
+});
+
+test("the no-up tiles are walkable and the scatter targets sit off the board at the corners", () => {
+  assert.deepEqual(NO_UP_TILES, [{ x: 12, y: 11 }, { x: 15, y: 11 }, { x: 12, y: 23 }, { x: 15, y: 23 }]);
+  for (const t of NO_UP_TILES) assert.ok(isWalkable(tileAt(maze, t.x, t.y)), `(${t.x},${t.y}) walkable`);
+  assert.deepEqual(SCATTER_TARGETS, {
+    blinky: { x: 25, y: -3 }, pinky: { x: 2, y: -3 }, inky: { x: 27, y: 31 }, clyde: { x: 0, y: 31 },
+  });
+  assert.ok(Object.isFrozen(NO_UP_TILES) && Object.isFrozen(SCATTER_TARGETS));
 });
 
 test("wallMask on the real maze: the house door and interior count as open", () => {
