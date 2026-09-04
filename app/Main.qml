@@ -20,8 +20,9 @@ import "render/Hud.js" as Hud
 // Keys: arrows / hjkl / WASD move, g toggles arcade/smooth, q or Escape
 // quits, F12 grabs a frame when PACMAN_DEBUG=1.
 //
-// Debug hooks (PACMAN_DEBUG=1): the fps is logged once a second and shown
-// in the overlay with the player's tile and wanted direction, every game
+// Debug hooks (PACMAN_DEBUG=1): the fps is logged once a second (with the
+// phase, mode, fright timer and every ghost's state and tile) and shown in
+// the overlay with the player's tile and wanted direction, every game
 // event is logged, and PACMAN_DEBUG_KEYS="Left,1500,Up,F12,q" replays those
 // keys through the same handlers 1.5 s after start (direction keys are
 // tapped: pressed and released), a number in the list being a pause in
@@ -78,8 +79,33 @@ ShellRoot {
                 pacman: String(Theme.yellow),
                 text: String(Theme.foreground),
                 muted: String(Theme.muted),
+                // Ghosts: bodies, the frightened look and its flash, the eyes.
+                ghosts: {
+                    blinky: String(Theme.red),
+                    pinky: String(Theme.magenta),
+                    inky: String(Theme.cyan),
+                    clyde: String(Theme.orange),
+                },
+                frightened: String(Theme.blue),
+                frightenedFace: String(Theme.foreground),
+                flash: String(Theme.foreground),
+                flashFace: String(Theme.blue),
+                eyeWhite: String(Theme.bright_foreground),
+                pupil: String(Theme.blue),
+                // Board texts.
+                ready: String(Theme.yellow),
+                gameOver: String(Theme.red),
+                eatenScore: String(Theme.cyan),
             };
         }
+
+        // The level-clear blink: walls alternate every 15 ticks for the
+        // 120-tick level-clear phase (four flashes).
+        readonly property bool flash: state.phase === "level-clear" && Math.floor(state.phaseTicks / 15) % 2 === 1
+        onFlashChanged: backdrop.requestPaint()
+
+        // Ghosts are hidden while Pac-Man dies and while the board flashes.
+        readonly property bool showGhosts: state.phase !== "dying" && state.phase !== "level-clear"
 
         // Qt key -> the name lib/input.mjs understands, or null.
         readonly property var directionKeys: ({
@@ -132,7 +158,11 @@ ShellRoot {
                 for (let i = 0; i < r.events.length; i++) {
                     const e = r.events[i];
                     if (e.type === "level-clear") console.info("Level clear: score " + s.score + " after " + s.tick + " ticks");
-                    if (debug) console.info("Debug: event " + JSON.stringify(e) + " score " + s.score + " left " + s.pelletsLeft);
+                    if (e.type === "game-over") console.info("Game over: score " + s.score + " on level " + s.level);
+                    if (debug) {
+                        console.info("Debug: event " + JSON.stringify(e) + " tick " + s.tick + " score " + s.score
+                            + " lives " + s.lives + " left " + s.pelletsLeft + " phase " + s.phase);
+                    }
                 }
             }
             state = s;
@@ -144,7 +174,18 @@ ShellRoot {
                 fps: fps,
                 tile: tile,
                 wantDir: state.player.wantDir !== null ? state.player.wantDir : Input.wantedDirection(pressed),
+                mode: state.mode,
+                phase: state.phase,
+                fright: state.frightTicks,
             };
+        }
+
+        // One token per ghost for the debug log: name, state, tile, direction.
+        function debugGhosts() {
+            return state.ghosts.map(g => {
+                const t = Player.tileOf(g, state.board);
+                return g.name + ":" + g.state + "@" + t.x + "," + t.y + g.dir.charAt(0);
+            }).join(" ");
         }
 
         function grabFrame() {
@@ -195,13 +236,14 @@ ShellRoot {
                         // The HUD rows share the background; the board fills its own rect.
                         ctx.fillStyle = palette.background;
                         ctx.fillRect(0, 0, stage.nativeWidth, stage.nativeHeight);
-                        Board.drawBackdrop(ctx, window.maze, palette);
+                        Board.drawBackdrop(ctx, window.maze, palette, window.flash);
                         ctx.restore();
                     }
                 }
 
-                // Everything that moves: pellets, the player, the HUD and the
-                // debug line, redrawn every frame over a transparent canvas.
+                // Everything that moves: pellets, the ghosts, the player (or
+                // the death animation), the HUD and the debug line, redrawn
+                // every frame over a transparent canvas.
                 Canvas {
                     id: overlay
                     anchors.fill: parent
@@ -216,8 +258,22 @@ ShellRoot {
                         ctx.save();
                         ctx.scale(stage.resolution, stage.resolution);
                         Board.drawPellets(ctx, state.board, palette, window.timeMs);
-                        Sprites.drawPacman(ctx, state.player, palette);
+                        if (window.showGhosts) {
+                            // Eyes last so they overlay a ghost standing on the same tile.
+                            const frame = Math.floor(state.tick / 8) % 2;
+                            const flashing = Game.ghostFlashing(state);
+                            for (let pass = 0; pass < 2; pass++) {
+                                for (let i = 0; i < state.ghosts.length; i++) {
+                                    const g = state.ghosts[i];
+                                    const eyes = g.state === "eaten" || g.state === "entering";
+                                    if (eyes === (pass === 1)) Sprites.drawGhost(ctx, g, palette, frame, flashing);
+                                }
+                            }
+                        }
+                        if (state.phase === "dying") Sprites.drawDeath(ctx, state.player, state.phaseTicks, palette);
+                        else if (state.phase !== "game-over") Sprites.drawPacman(ctx, state.player, palette);
                         Hud.drawHud(ctx, state, palette, Theme.fontFamily);
+                        Hud.drawEatenScore(ctx, state, palette, Theme.fontFamily);
                         if (window.debug) Hud.drawDebug(ctx, window.debugInfo(), palette, Theme.fontFamily);
                         ctx.restore();
                     }
@@ -247,9 +303,11 @@ ShellRoot {
             }
         }
 
-        // Debug key script: one key every 600 ms, starting 1.5 s after launch;
-        // a numeric entry pauses that many milliseconds instead. Direction
-        // keys are tapped (pressed and released in the same frame).
+        // Debug key script: one key every 600 ms, starting 1.5 s after launch.
+        // A numeric entry replaces the gap before the next key with that many
+        // milliseconds (so "Left,150,Down" taps Down 150 ms after Left, and
+        // "Left,3000,Up" waits three seconds). Direction keys are tapped
+        // (pressed and released in the same frame).
         Timer {
             id: keyScript
             property int next: 0
@@ -261,21 +319,41 @@ ShellRoot {
             })
             interval: 1500
             running: window.debugKeys.length > 0
-            onTriggered: {
-                const name = window.debugKeys[next++];
-                const pause = Number(name);
-                if (Number.isFinite(pause) && pause > 0) {
+
+            // Consume any numeric entries at `next`; the last one is the delay
+            // before the following key, else `fallback`.
+            function nextDelay(fallback) {
+                let delay = fallback;
+                while (next < window.debugKeys.length) {
+                    const pause = Number(window.debugKeys[next]);
+                    if (!(Number.isFinite(pause) && pause > 0)) break;
+                    delay = pause;
                     console.info("Debug: pause " + pause + " ms");
-                } else {
-                    const key = names[name];
-                    console.info("Debug: key " + name + (key === undefined ? " (unknown, ignored)" : ""));
-                    if (key !== undefined) {
-                        window.handleKey(key);
-                        window.handleKeyRelease(key);
-                    }
+                    next++;
                 }
+                return delay;
+            }
+
+            Component.onCompleted: {
+                if (window.debugKeys.length > 0) {
+                    interval = nextDelay(1500);
+                    restart();
+                }
+            }
+
+            onTriggered: {
+                if (next >= window.debugKeys.length) return;
+                const name = window.debugKeys[next++];
+                const key = names[name];
+                console.info("Debug: key " + name + (key === undefined ? " (unknown, ignored)" : "")
+                    + " at tick " + window.state.tick);
+                if (key !== undefined) {
+                    window.handleKey(key);
+                    window.handleKeyRelease(key);
+                }
+                const delay = nextDelay(600);
                 if (next < window.debugKeys.length) {
-                    interval = Number.isFinite(pause) && pause > 0 ? pause : 600;
+                    interval = delay;
                     restart();
                 }
             }
@@ -296,7 +374,11 @@ ShellRoot {
                     + " box " + stage.sceneRect.width + "x" + stage.sceneRect.height
                     + " | tile " + tile.x + "," + tile.y + " pos " + window.state.player.x.toFixed(2) + "," + window.state.player.y.toFixed(2)
                     + " dir " + window.state.player.dir + " want " + window.state.player.wantDir
-                    + " score " + window.state.score + " left " + window.state.pelletsLeft + " tick " + window.state.tick);
+                    + " score " + window.state.score + " lives " + window.state.lives + " level " + window.state.level
+                    + " left " + window.state.pelletsLeft + " tick " + window.state.tick
+                    + " | phase " + window.state.phase + " mode " + window.state.mode + " clock " + window.state.modeClock
+                    + " fright " + window.state.frightTicks + " chain " + window.state.chain
+                    + " | " + window.debugGhosts());
                 window.frames = 0;
             }
         }

@@ -187,16 +187,18 @@ function drawPellets(ctx, board, palette, timeMs) {
 /**
  * The static part of the board: background, walls and house. Costly to
  * rasterise (thousands of stroked elements), so Main.qml keeps it on its own
- * canvas and repaints it only when the palette, size or mode changes.
- * `palette` is a plain object { wall, door, pellet, background } of colour
- * strings.
+ * canvas and repaints it only when the palette, size, mode or `flash`
+ * changes. `palette` is a plain object { wall, door, background, flash } of
+ * colour strings; with `flash` set the walls are stroked in `palette.flash`
+ * (the level-clear blink).
  */
-function drawBackdrop(ctx, maze, palette) {
+function drawBackdrop(ctx, maze, palette, flash) {
+    var colours = flash ? Object.assign({}, palette, { wall: palette.flash }) : palette;
     ctx.save();
     ctx.translate(Scale.BOARD_ORIGIN.x, Scale.BOARD_ORIGIN.y);
-    ctx.fillStyle = palette.background;
+    ctx.fillStyle = colours.background;
     ctx.fillRect(0, 0, maze.width * TILE, maze.height * TILE);
-    drawWalls(ctx, maze, palette);
-    drawHouse(ctx, maze.house, palette);
+    drawWalls(ctx, maze, colours);
+    drawHouse(ctx, maze.house, colours);
     ctx.restore();
 }
