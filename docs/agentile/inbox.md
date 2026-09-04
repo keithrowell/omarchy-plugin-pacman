@@ -40,3 +40,4 @@ Drop stubs with `/ag-capture <idea>`. Shape them into specs with `/ag-shape`. A 
 - [ ] Defer the corrupt highscore.json rewrite out of onLoaded (Qt.callLater) to silence the fileview "dropped operation" warning — (captured 2026-09-04)
 - [ ] Guard the debug key-script names lookup with hasOwnProperty — (captured 2026-09-04)
 - [ ] Attract demo ends by the 40 s cap; a longer cap or smarter autopilot would give a real game-over ending — (captured 2026-09-04)
+- [ ] Env switch to hide the debug overlay while keeping F12, so preview grabs need no --blank — (captured 2026-09-04)

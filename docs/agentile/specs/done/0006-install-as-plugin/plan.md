@@ -216,3 +216,25 @@ the desktop file content; the `omarchy menu summon pacman` launch line.
 ## ADR
 
 None.
+
+## As built (recorded at ship)
+
+- Published: https://github.com/keithrowell/omarchy-plugin-pacman (private),
+  default branch `master`; the lab checkout now has it as `origin` and stays
+  the development checkout (the spec's open question, resolved as "keep both").
+- Submodule at `~/.config/omarchy/plugins/com.keithrowell.pacman`; dotfiles
+  commit 015d427 touched only `.gitmodules`, the gitlink, one `.config/.gitignore`
+  line and the menu entry; the unrelated dirty hunks in `.config/.gitignore`
+  were left unstaged via a crafted `git apply --cached` patch.
+- The `.config/.gitignore` allow rule must exist before `git submodule add`
+  (the plan had the two steps the other way round; the README uses the
+  skill's order).
+- `bin/install` was run from the submodule, so the desktop file and
+  `~/.local/bin/omarchy-pacman` point there. `omarchy menu summon pacman`
+  launched the game from the submodule path.
+- `--uninstall` removes only files it owns (review finding).
+- `make-preview.py --blank` repaints the debug HUD row that `PACMAN_DEBUG=1`
+  draws into the grab.
+- Rolling out to another machine: `git pull` in `~`, then
+  `git submodule update --init .config/omarchy/plugins/com.keithrowell.pacman`
+  and `bin/install` from there.

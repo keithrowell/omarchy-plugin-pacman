@@ -1,7 +1,8 @@
 ---
 title: "Ship it as an Omarchy plugin: menu entry, desktop file, dotfiles submodule, README"
 slug: install-as-plugin
-status: in_progress
+status: shipped
+shipped_at: 2026-09-04T07:09:52Z
 depends_on: [game-flow-and-hud]
 type: feature
 route: background
