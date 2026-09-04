@@ -1,7 +1,7 @@
 ---
 title: "Ship it as an Omarchy plugin: menu entry, desktop file, dotfiles submodule, README"
 slug: install-as-plugin
-status: ready
+status: in_progress
 depends_on: [game-flow-and-hud]
 type: feature
 route: background
@@ -9,9 +9,9 @@ business_value: medium
 technical_certainty: high
 created: 2026-09-04
 outcome: the game launches from the Omarchy menu and the app launcher on this machine, and a fresh machine gets it from the dotfiles bootstrap
-claimed_by:
-label:
-claimed_at:
+claimed_by: a7420d79-880d-4334-8062-82d6934a6047
+label: 
+claimed_at: 2026-09-04T05:08:59Z
 ---
 
 # Ship it as an Omarchy plugin: menu entry, desktop file, dotfiles submodule, README
