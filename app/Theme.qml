@@ -63,14 +63,31 @@ QtObject {
         source: Qt.resolvedUrl("assets/fonts/PressStart2P-Regular.ttf")
     }
 
+    // omarchy-theme-set replaces current/theme with `rm -rf` + `mv`. If a reload
+    // lands in that gap it fails and FileView drops its watch on the vanished
+    // file, so nothing would ever re-arm it. Retry until a load succeeds; the
+    // successful load re-establishes the watch. The palette keeps its last good
+    // value meanwhile (it starts as the defaults, so a missing file at startup
+    // still yields the default palette).
+    property Timer retry: Timer {
+        interval: 250
+        repeat: true
+        onTriggered: root.colorsFile.reload()
+    }
+
     property FileView colorsFile: FileView {
         path: root.colorsPath
         watchChanges: true
         printErrors: false
-        onLoaded: root.apply(text())
+        onLoaded: {
+            root.retry.stop();
+            root.apply(text());
+        }
         onLoadFailed: {
-            console.warn("Theme: could not read " + root.colorsPath + "; using default palette");
-            root.palette = ThemeLib.resolveTheme({});
+            if (!root.retry.running) {
+                console.warn("Theme: could not read " + root.colorsPath + "; keeping current palette and retrying");
+                root.retry.start();
+            }
         }
         onFileChanged: reload()
     }
