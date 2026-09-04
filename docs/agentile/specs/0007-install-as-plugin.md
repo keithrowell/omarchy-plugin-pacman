@@ -32,6 +32,7 @@ desktop file, the way Sous is installed.
 - [ ] `README.md`: what it is, keys (arrows/hjkl/WASD, Enter, p, g, s, m, q), install steps, how sounds are generated, theme behaviour, a `preview.png` screenshot in the current theme.
 - [ ] `manifest.json` validated with `omarchy-plugin-validate` (or documented why `kinds: []` fails validation and is accepted, as Sous is).
 - [ ] `bin/pacman` resolves its own directory (`readlink -f`) so it works from the submodule path and from this checkout.
+- [ ] Nothing named `pacman` is ever placed on `PATH` — that shadows the Arch package manager. Any PATH launcher or symlink is called `omarchy-pacman`; the in-repo `bin/pacman` is only ever invoked by full path (desktop file, menu action).
 
 ## Scope boundary
 
