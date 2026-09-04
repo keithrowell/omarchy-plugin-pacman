@@ -14,10 +14,11 @@ import "lib/scale.mjs" as Scale
 // pixels: the canvas raster is then exactly native-sized and lands 1:1 in the
 // layer texture with no resampling (laying it out at native size made the
 // canvas raster 1.6x too big and the layer blurred it down). Letterboxed and
-// centred; the parent's colour shows through the borders.
+// centred; the parent's colour shows through the borders. Optional scanlines
+// are drawn above the upscaled scene, one device-pixel line per native row.
 //
 // Smooth: no layer. The scene is laid out at the fitted size so children
-// rasterise at full resolution.
+// rasterise at full resolution. Scanlines are never drawn.
 //
 // Either way, content draws in native units multiplied by `resolution`.
 Item {
@@ -30,6 +31,12 @@ Item {
     // Device pixels per logical pixel, from the window's screen. Only the fit
     // maths sees it; the scene stays in native units.
     property real devicePixelRatio: 1
+
+    // Scanlines (arcade only): the last device-pixel row of every native row
+    // is covered by `scanlineColor` at `scanlineAlpha`.
+    property bool scanlines: false
+    property color scanlineColor
+    property real scanlineAlpha: 0.15
 
     default property alias content: scene.data
 
@@ -68,4 +75,39 @@ Item {
         layer.smooth: false
         layer.mipmap: false
     }
+
+    // Drawn in device pixels (the canvas rasterises at item size x dpr) so
+    // each line is exactly one device row, the bottom row of its block.
+    Canvas {
+        id: lines
+        anchors.fill: parent
+        visible: root.arcade && root.scanlines
+        renderStrategy: Canvas.Cooperative
+        antialiasing: false
+
+        onPaint: {
+            const ctx = getContext("2d");
+            ctx.clearRect(0, 0, width, height);
+            if (!root.arcade || !root.scanlines) return;
+            const fit = root.fit;
+            const dpr = root.devicePixelRatio;
+            const k = fit.k;
+            const c = root.scanlineColor;
+            ctx.save();
+            ctx.scale(1 / dpr, 1 / dpr);
+            ctx.fillStyle = "rgba(" + Math.round(c.r * 255) + "," + Math.round(c.g * 255) + ","
+                + Math.round(c.b * 255) + "," + root.scanlineAlpha + ")";
+            const x = Math.round(fit.x * dpr);
+            const y0 = Math.round(fit.y * dpr);
+            const w = root.nativeWidth * k;
+            for (let row = 0; row < root.nativeHeight; row++) ctx.fillRect(x, y0 + row * k + k - 1, w, 1);
+            ctx.restore();
+        }
+
+        onVisibleChanged: requestPaint()
+    }
+
+    onFitChanged: lines.requestPaint()
+    onScanlineColorChanged: lines.requestPaint()
+    onScanlineAlphaChanged: lines.requestPaint()
 }

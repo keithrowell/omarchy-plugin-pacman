@@ -44,16 +44,18 @@ function fontString(family) {
  * 1UP and the score top-left, HIGH SCORE and its value top-centre, the
  * spare lives (lives - 1) bottom-left, LEVEL n bottom-right, and READY! or
  * GAME OVER on the board while the phase says so. `palette` needs
- * { text, pacman, ready, gameOver }.
+ * { text, pacman, ready, gameOver }. `opts` (optional) is { arcade, blinkOn }:
+ * in arcade mode 1UP blinks, drawn only while blinkOn; otherwise it is steady.
  */
-function drawHud(ctx, state, palette, family) {
+function drawHud(ctx, state, palette, family, opts) {
+    var showOneUp = !opts || !opts.arcade || opts.blinkOn;
     ctx.save();
     ctx.font = fontString(family);
     ctx.textBaseline = "top";
     ctx.fillStyle = palette.text;
 
     ctx.textAlign = "left";
-    ctx.fillText("1UP", ONE_UP_X, 0);
+    if (showOneUp) ctx.fillText("1UP", ONE_UP_X, 0);
     ctx.fillText("HIGH SCORE", HIGH_SCORE_X, 0);
 
     ctx.textAlign = "right";

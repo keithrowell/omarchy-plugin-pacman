@@ -110,6 +110,30 @@ test("createState accepts a level option", () => {
   assert.equal(createState(maze, { level: 3 }).level, 3);
 });
 
+test("createState takes the persisted high score; junk means 0", () => {
+  assert.equal(createState(maze, { highScore: 900 }).highScore, 900);
+  assert.equal(createState(maze, { highScore: 12.9 }).highScore, 12);
+  assert.equal(createState(maze, { highScore: -5 }).highScore, 0);
+  assert.equal(createState(maze, { highScore: "900" }).highScore, 0);
+  assert.equal(createState(maze, { highScore: NaN }).highScore, 0);
+  assert.equal(createState(maze).highScore, 0);
+});
+
+test("the high score follows the score live once beaten, and not before", () => {
+  let s = fresh({ ghosts: false, highScore: 95 });
+  s = eatN(s, 9);
+  assert.equal(s.score, 90);
+  assert.equal(s.highScore, 95, "not beaten yet");
+  s = eatNext(s);
+  assert.equal(s.score, 100);
+  assert.equal(s.highScore, 100, "raised on the tick it is beaten");
+  s = eatNext(s);
+  assert.equal(s.highScore, 110, "and follows from then on");
+  // A power pellet's 50 counts too.
+  const powered = withPlayer(fresh({ highScore: 0 }), { x: centre(1), y: centre(4) - 3.5, dir: "up" });
+  assert.equal(step(powered, { wantDir: null }, TICK).state.highScore, 50);
+});
+
 test("one tick onto a pellet: +10, tile emptied, event, then a one-tick pause; input untouched", () => {
   // Tile 12 on the spawn row is a pellet; place the player one tick from its edge.
   assert.equal(tileAt(maze, 12, 23), TILE.PELLET);
@@ -326,7 +350,8 @@ test("createState: four ghosts, the ready phase, scatter mode, RNG from the seed
   assert.deepEqual(createState(maze, { ghosts: false }).ghosts, []);
 });
 
-test("the ready phase holds everything for 60 ticks, buffers input, then play starts", () => {
+test("the ready phase holds everything for READY_TICKS (2 s), buffers input, then play starts", () => {
+  assert.equal(READY_TICKS, 120);
   const s0 = createState(maze);
   const r = run(s0, READY_TICKS - 1, "up");
   assert.equal(r.state.phase, "ready");
