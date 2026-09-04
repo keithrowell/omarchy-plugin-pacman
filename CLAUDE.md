@@ -15,7 +15,7 @@ Read `docs/agentile/brief.md` (imported below) and `docs/adr/` before working.
 
 - Every colour comes from `Theme` (parsed from `~/.local/state/omarchy/current/theme/colors.toml`). Never hard-code one.
 - Game logic is pure and deterministic: `step(state, input, dt)` returns a new state plus an `events` list; QML only renders and plays sound.
-- One renderer draws in native arcade units (224×248). `app/PixelStage.qml` turns that into big pixels (arcade, default) or full-res smooth output; game code never knows the window size or DPI (ADR-0002).
+- One renderer draws in native arcade units (224×288: the 224×248 maze plus the HUD rows above and below, ADR-0002 amendment). `app/PixelStage.qml` turns that into big pixels (arcade, default) or full-res smooth output; game code never knows the window size or DPI (ADR-0002).
 - Run `node --test tests/*.test.mjs` before claiming anything works (Node 26 needs the file glob; a bare directory fails). Launch with `bin/pacman` to eyeball it.
 
 ## Agentile
