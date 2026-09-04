@@ -1,8 +1,10 @@
 .pragma library
 .import "../lib/maze.mjs" as Maze
+.import "../lib/scale.mjs" as Scale
 
 // Draws the maze on a Canvas 2D context in native arcade units (8-px tiles,
-// 224x248). Smooth vector primitives only; PixelStage decides whether they
+// 224x248, offset by Scale.BOARD_ORIGIN to leave the HUD rows above and
+// below). Smooth vector primitives only; PixelStage decides whether they
 // become big pixels or stay crisp. No Qt, no Theme: the parsed maze, a
 // palette object and the time come in as arguments, so a theme change
 // recolours on the very next paint.
@@ -155,22 +157,31 @@ function drawWalls(ctx, maze, palette) {
     ctx.stroke();
 }
 
-function drawPellets(ctx, maze, palette, timeMs) {
+/**
+ * The pellets still on the board. `board` is the game state's tile view
+ * ({ width, height, tiles }), so eaten pellets vanish; power pellets blink
+ * on a 200 ms cadence from `timeMs`.
+ */
+function drawPellets(ctx, board, palette, timeMs) {
+    var blink = Math.floor(timeMs / 200) % 2 === 0;
+    ctx.save();
+    ctx.translate(Scale.BOARD_ORIGIN.x, Scale.BOARD_ORIGIN.y);
     ctx.fillStyle = palette.pellet;
-    for (var i = 0; i < maze.pellets.length; i++) {
-        var p = maze.pellets[i];
-        ctx.fillRect(p.x * TILE + 3, p.y * TILE + 3, 2, 2);
-    }
-    if (Math.floor(timeMs / 200) % 2 === 0) {
-        ctx.beginPath();
-        for (var j = 0; j < maze.powerPellets.length; j++) {
-            var q = maze.powerPellets[j];
-            var cx = q.x * TILE + TILE / 2, cy = q.y * TILE + TILE / 2;
-            ctx.moveTo(cx + 4, cy);
-            ctx.arc(cx, cy, 4, 0, 2 * Math.PI);
+    ctx.beginPath();
+    for (var y = 0; y < board.height; y++) {
+        for (var x = 0; x < board.width; x++) {
+            var kind = board.tiles[y * board.width + x];
+            if (kind === Maze.TILE.PELLET) {
+                ctx.fillRect(x * TILE + 3, y * TILE + 3, 2, 2);
+            } else if (blink && kind === Maze.TILE.POWER) {
+                var cx = x * TILE + TILE / 2, cy = y * TILE + TILE / 2;
+                ctx.moveTo(cx + 4, cy);
+                ctx.arc(cx, cy, 4, 0, 2 * Math.PI);
+            }
         }
-        ctx.fill();
     }
+    ctx.fill();
+    ctx.restore();
 }
 
 /**
@@ -181,13 +192,16 @@ function drawPellets(ctx, maze, palette, timeMs) {
  * strings.
  */
 function drawBackdrop(ctx, maze, palette) {
+    ctx.save();
+    ctx.translate(Scale.BOARD_ORIGIN.x, Scale.BOARD_ORIGIN.y);
     ctx.fillStyle = palette.background;
     ctx.fillRect(0, 0, maze.width * TILE, maze.height * TILE);
     drawWalls(ctx, maze, palette);
     drawHouse(ctx, maze.house, palette);
+    ctx.restore();
 }
 
-/** Draw the whole board in one go (backdrop plus pellets). */
+/** Draw the whole board in one go (backdrop plus every pellet of a fresh maze). */
 function drawBoard(ctx, maze, palette, timeMs) {
     drawBackdrop(ctx, maze, palette);
     drawPellets(ctx, maze, palette, timeMs);
