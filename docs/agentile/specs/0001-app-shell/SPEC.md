@@ -1,7 +1,7 @@
 ---
 title: "Stand up the app shell: window, theme reader, font, launcher"
 slug: app-shell
-status: ready
+status: in_progress
 depends_on: []
 type: feature
 route: background
@@ -9,9 +9,9 @@ business_value: high
 technical_certainty: high
 created: 2026-09-04
 outcome: bin/pacman opens a themed window that recolours within a second of an Omarchy theme switch
-claimed_by:
-label:
-claimed_at:
+claimed_by: a7420d79-880d-4334-8062-82d6934a6047
+label: 
+claimed_at: 2026-09-04T01:35:21Z
 ---
 
 # Stand up the app shell: window, theme reader, font, launcher
