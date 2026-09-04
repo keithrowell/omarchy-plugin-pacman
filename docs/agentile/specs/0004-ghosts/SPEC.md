@@ -1,7 +1,7 @@
 ---
 title: Four ghosts with classic behaviour, lives and level progression
 slug: ghosts
-status: ready
+status: in_progress
 depends_on: [player-movement]
 type: feature
 route: background
@@ -9,9 +9,9 @@ business_value: high
 technical_certainty: medium
 created: 2026-09-04
 outcome: a full game can be lost (three deaths) and won (level cleared and speed-up) against ghosts whose behaviour matches the documented Pac-Man rules
-claimed_by:
-label:
-claimed_at:
+claimed_by: a7420d79-880d-4334-8062-82d6934a6047
+label: 
+claimed_at: 2026-09-04T03:40:47Z
 ---
 
 # Four ghosts with classic behaviour, lives and level progression
