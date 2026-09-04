@@ -67,14 +67,32 @@ fi
 say() { printf '%s\n' "$*"; }
 would() { if (( DRY_RUN )); then say "$1: would $2"; return 0; else return 1; fi; }
 
+# Uninstall removes only what this checkout owns: a desktop file whose Exec
+# points into ROOT and a launcher symlink that points at ROOT's bin/pacman.
+# Anything else with those names is reported and left alone.
+owns_desktop() {
+  [[ -f "$DESKTOP" ]] && grep -qF -e "Exec=\"$ROOT/" -e "Exec=$ROOT/" -- "$DESKTOP"
+}
+owns_launcher() {
+  [[ -L "$LAUNCHER" && "$(readlink "$LAUNCHER")" == "$LAUNCH" ]]
+}
+
 if (( UNINSTALL )); then
-  if [[ -e "$DESKTOP" ]]; then
-    would "desktop file" "remove $DESKTOP" || { rm -f "$DESKTOP"; say "desktop file: removed $DESKTOP"; }
+  if [[ -e "$DESKTOP" || -L "$DESKTOP" ]]; then
+    if owns_desktop; then
+      would "desktop file" "remove $DESKTOP" || { rm -f "$DESKTOP"; say "desktop file: removed $DESKTOP"; }
+    else
+      say "desktop file: not ours, left alone $DESKTOP"
+    fi
   else
     say "desktop file: absent"
   fi
-  if [[ -L "$LAUNCHER" || -e "$LAUNCHER" ]]; then
-    would "launcher" "remove $LAUNCHER" || { rm -f "$LAUNCHER"; say "launcher: removed $LAUNCHER"; }
+  if [[ -e "$LAUNCHER" || -L "$LAUNCHER" ]]; then
+    if owns_launcher; then
+      would "launcher" "remove $LAUNCHER" || { rm -f "$LAUNCHER"; say "launcher: removed $LAUNCHER"; }
+    else
+      say "launcher: not ours, left alone $LAUNCHER"
+    fi
   else
     say "launcher: absent"
   fi

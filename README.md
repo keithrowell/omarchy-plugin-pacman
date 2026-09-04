@@ -21,7 +21,7 @@ belongs to the desktop, and recolours itself when the theme changes.
 | `m` | Mute (coming with the sound spec) |
 | F12 | Save a frame to `~/.local/state/pacman/frame.png` (only with `PACMAN_DEBUG=1`) |
 
-Any key ends the attract demo. The high score and the graphics settings live
+Any game key ends the attract demo (`g` and F12 do not). The high score and the graphics settings live
 in `~/.local/state/pacman/`.
 
 ## Install
@@ -41,7 +41,9 @@ Adding it to the dotfiles for the first time:
 ```bash
 cd ~
 git submodule add git@github.com:keithrowell/omarchy-plugin-pacman.git .config/omarchy/plugins/com.keithrowell.pacman
-echo '!omarchy/plugins/com.keithrowell.pacman' >> .config/.gitignore   # next to the other plugin allow rules
+# .config/.gitignore is whitelist-style: add the allow rule next to the other
+# plugin rules (after the com.keithrowell.reel line), not at the end of the file.
+sed -i '/^!omarchy\/plugins\/com\.keithrowell\.reel$/a !omarchy/plugins/com.keithrowell.pacman' .config/.gitignore
 git add .gitmodules .config/.gitignore .config/omarchy/plugins/com.keithrowell.pacman
 git commit -m "Add Pacman plugin as submodule"
 ~/.config/omarchy/plugins/com.keithrowell.pacman/bin/install
