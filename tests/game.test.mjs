@@ -654,3 +654,140 @@ test("an extra life at 10,000 points, once", () => {
   assert.equal(again.state.lives, 4);
   assert.ok(!again.events.some(e => e.type === "extra-life"));
 });
+
+// --- House release and Cruise Elroy -------------------------------------
+
+test("the Dossier's house tables: personal limits, global limits, no-pellet timer", () => {
+  assert.deepEqual([personalDotLimit(1, "pinky"), personalDotLimit(1, "inky"), personalDotLimit(1, "clyde")], [0, 30, 60]);
+  assert.deepEqual([personalDotLimit(2, "pinky"), personalDotLimit(2, "inky"), personalDotLimit(2, "clyde")], [0, 0, 50]);
+  for (const level of [3, 4, 10, 21]) {
+    assert.deepEqual([personalDotLimit(level, "pinky"), personalDotLimit(level, "inky"), personalDotLimit(level, "clyde")], [0, 0, 0], `L${level}`);
+  }
+  assert.deepEqual(GLOBAL_DOT_LIMITS, { pinky: 7, inky: 17, clyde: 32 });
+  assert.equal(noPelletReleaseTicks(1), 240);
+  assert.equal(noPelletReleaseTicks(4), 240);
+  assert.equal(noPelletReleaseTicks(5), 180);
+  assert.equal(noPelletReleaseTicks(30), 180);
+});
+
+test("level 1 personal counters: Inky leaves after 30 pellets, Clyde after 60 more; each pellet counts for the first waiting ghost", () => {
+  let s = run(fresh(), 1).state;
+  assert.equal(ghostNamed(s, "pinky").state, "leaving");
+  s = eatN(s, 29);
+  assert.equal(ghostNamed(s, "inky").state, "house");
+  assert.equal(ghostNamed(s, "inky").dotCounter, 29);
+  assert.equal(ghostNamed(s, "clyde").dotCounter, 0, "Clyde's counter waits its turn");
+  s = eatNext(s);
+  assert.equal(ghostNamed(s, "inky").state, "leaving");
+  assert.equal(ghostNamed(s, "inky").dotCounter, 30);
+  s = eatN(s, 59);
+  assert.equal(ghostNamed(s, "clyde").state, "house");
+  assert.equal(ghostNamed(s, "clyde").dotCounter, 59);
+  s = eatNext(s);
+  assert.equal(ghostNamed(s, "clyde").state, "leaving");
+  assert.equal(s.phase, "playing", "no death along the way");
+  assert.deepEqual(s.globalDots, { active: false, count: 0 });
+});
+
+test("level 2: Pinky and Inky leave at once, Clyde after 50 pellets", () => {
+  let s = run(fresh({ level: 2 }), 1).state;
+  assert.equal(ghostNamed(s, "pinky").state, "leaving");
+  assert.equal(ghostNamed(s, "inky").state, "house", "one release per tick");
+  s = run(s, 1).state;
+  assert.equal(ghostNamed(s, "inky").state, "leaving");
+  s = eatN(s, 49);
+  assert.equal(ghostNamed(s, "clyde").state, "house");
+  s = eatNext(s);
+  assert.equal(ghostNamed(s, "clyde").state, "leaving");
+});
+
+test("after a death the global counter releases Pinky at 7, Inky at 17, Clyde at 32, then switches off", () => {
+  let s = Object.assign({}, fresh(), { ghosts: [ghostAt("blinky", 13, 23, "left", "normal")].concat(createGhosts(maze).slice(1)) });
+  s = run(s, 1 + DYING_TICKS + READY_TICKS).state;
+  assert.equal(s.phase, "playing");
+  assert.equal(s.lives, 2);
+  assert.deepEqual(s.globalDots, { active: true, count: 0 });
+  // Park the player against a wall on an empty tile so only eatNext eats.
+  s = run(withPlayer(s, { x: centre(5), y: centre(17), dir: "up" }), 5).state;
+  assert.equal(ghostNamed(s, "pinky").state, "house", "Pinky's zero limit is ignored on the global counter");
+  s = eatN(s, 6);
+  assert.equal(ghostNamed(s, "pinky").state, "house");
+  assert.equal(s.globalDots.count, 6);
+  s = eatNext(s);
+  assert.equal(ghostNamed(s, "pinky").state, "leaving");
+  s = eatN(s, 9);
+  assert.equal(ghostNamed(s, "inky").state, "house");
+  s = eatNext(s);
+  assert.equal(ghostNamed(s, "inky").state, "leaving");
+  assert.equal(s.globalDots.count, 17);
+  s = eatN(s, 14);
+  assert.equal(ghostNamed(s, "clyde").state, "house");
+  s = eatNext(s);
+  assert.equal(ghostNamed(s, "clyde").state, "leaving");
+  assert.deepEqual(s.globalDots, { active: false, count: 0 }, "back to the personal counters");
+  for (const g of s.ghosts) assert.equal(g.dotCounter, 0, `${g.name}'s personal counter was not touched`);
+});
+
+test("four seconds without a pellet releases the next ghost", () => {
+  // Park the player against a wall on an empty tile in the moat row so nothing is eaten.
+  let s = withPlayer(fresh(), { x: centre(5), y: centre(17), dir: "up" });
+  s = withGhost(s, "blinky", { x: centre(26), y: centre(1), dir: "left" });
+  s = run(s, 1).state;
+  assert.equal(ghostNamed(s, "pinky").state, "leaving");
+  const t1 = run(s, noPelletReleaseTicks(1) - 2);
+  assert.equal(ghostNamed(t1.state, "inky").state, "house");
+  assert.ok(!t1.events.some(e => e.type === "pellet"), "nothing eaten");
+  let t2 = run(s, noPelletReleaseTicks(1) - 1).state;
+  assert.equal(ghostNamed(t2, "inky").state, "leaving");
+  assert.equal(t2.dotTimer, 0, "the timer restarts");
+  // Only Clyde stays for the second round, so no chaser reaches the parked player meanwhile.
+  t2 = Object.assign({}, t2, { ghosts: t2.ghosts.filter(g => g.name === "clyde") });
+  const t3 = run(t2, noPelletReleaseTicks(1) - 1).state;
+  assert.equal(ghostNamed(t3, "clyde").state, "house");
+  const t4 = run(t2, noPelletReleaseTicks(1)).state;
+  assert.equal(ghostNamed(t4, "clyde").state, "leaving");
+  assert.equal(t4.phase, "playing");
+});
+
+test("Cruise Elroy: Blinky speeds up at 20 and 10 pellets left on level 1, but not while Clyde is home", () => {
+  const out = Object.assign({}, fresh(), { ghosts: createGhosts(maze).map(g => Object.assign({}, g, { state: "normal", y: 92 })) });
+  const blinky = ghostNamed(out, "blinky");
+  const at = n => Object.assign({}, out, { pelletsLeft: n });
+  assert.equal(elroyStage(at(21)), 0);
+  assert.equal(elroyStage(at(20)), 1);
+  assert.equal(elroyStage(at(11)), 1);
+  assert.equal(elroyStage(at(10)), 2);
+  assert.equal(elroyStage(at(1)), 2);
+  assert.equal(ghostSpeedFor(at(21), blinky), ghostSpeed(1));
+  assert.equal(ghostSpeedFor(at(20), blinky), elroySpeed(1, 1));
+  assert.equal(ghostSpeedFor(at(10), blinky), elroySpeed(1, 2));
+  assert.equal(ghostSpeedFor(at(10), ghostNamed(out, "pinky")), ghostSpeed(1), "only Blinky");
+  const home = withGhost(at(10), "clyde", { state: "house", y: 116 });
+  assert.equal(elroyStage(home), 0);
+  assert.equal(ghostSpeedFor(home, blinky), ghostSpeed(1));
+  // Level 5: thresholds 40 and 20.
+  const l5 = Object.assign({}, out, { level: 5 });
+  assert.equal(elroyStage(Object.assign({}, l5, { pelletsLeft: 40 })), 1);
+  assert.equal(elroyStage(Object.assign({}, l5, { pelletsLeft: 41 })), 0);
+  assert.equal(elroyStage(Object.assign({}, l5, { pelletsLeft: 20 })), 2);
+  // Measured on the board: an Elroy Blinky in a straight corridor covers more px a tick.
+  const corridor = withGhost(at(10), "blinky", { x: centre(2), y: centre(4), dir: "right" });
+  const slow = withGhost(at(30), "blinky", { x: centre(2), y: centre(4), dir: "right" });
+  const dFast = ghostNamed(run(corridor, 1).state, "blinky").x - centre(2);
+  const dSlow = ghostNamed(run(slow, 1).state, "blinky").x - centre(2);
+  assert.ok(Math.abs(dFast - elroySpeed(1, 2) * TILE_PX * TICK) < 1e-9, `elroy 2 moved ${dFast}`);
+  assert.ok(Math.abs(dSlow - ghostSpeed(1) * TILE_PX * TICK) < 1e-9, `normal moved ${dSlow}`);
+});
+
+test("ghost speeds by state: house and leaving at half, tunnel slows the living, eyes double", () => {
+  const s = fresh();
+  assert.equal(ghostSpeedFor(s, ghostNamed(s, "pinky")), ghostSpeed(1) / 2);
+  assert.equal(ghostSpeedFor(s, ghostAt("pinky", 13, 14, "up", "leaving")), ghostSpeed(1) / 2);
+  assert.equal(ghostSpeedFor(s, ghostAt("blinky", 1, 14, "left", "normal")), tunnelSpeed(1));
+  assert.equal(ghostSpeedFor(s, ghostAt("blinky", 1, 14, "left", "frightened")), tunnelSpeed(1));
+  assert.equal(ghostSpeedFor(s, ghostAt("blinky", 1, 14, "left", "eaten")), 2 * ghostSpeed(1), "eyes ignore the tunnel");
+  assert.equal(ghostSpeedFor(s, ghostAt("blinky", 1, 4, "left", "frightened")), ghostFrightenedSpeed(1));
+  assert.equal(ghostSpeedFor(s, ghostAt("blinky", 1, 4, "left", "normal")), ghostSpeed(1));
+  const l5 = fresh({ level: 5 });
+  assert.equal(ghostSpeedFor(l5, ghostAt("inky", 1, 4, "left", "normal")), ghostSpeed(5));
+});
