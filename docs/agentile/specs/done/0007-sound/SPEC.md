@@ -1,7 +1,8 @@
 ---
 title: Chiptune sound effects generated offline, played from game events
 slug: sound
-status: in_progress
+status: shipped
+shipped_at: 2026-09-04T07:43:21Z
 depends_on: [ghosts]
 type: feature
 route: background
@@ -54,5 +55,5 @@ None; the spike confirmed `SoundEffect` loads and plays a generated WAV under `q
 
 ## Verification
 
-- `node --test tests/` green including the checksum test.
+- `node --test tests/*.test.mjs` green including the checksum test.
 - Manual: play a level with sound; confirm waka, siren rising, fright loop, ghost-eaten, death, level-clear; `m` silences and persists across restart.

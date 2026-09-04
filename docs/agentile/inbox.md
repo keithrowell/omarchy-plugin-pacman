@@ -41,3 +41,7 @@ Drop stubs with `/ag-capture <idea>`. Shape them into specs with `/ag-shape`. A 
 - [ ] Guard the debug key-script names lookup with hasOwnProperty — (captured 2026-09-04)
 - [ ] Attract demo ends by the 40 s cap; a longer cap or smarter autopilot would give a real game-over ending — (captured 2026-09-04)
 - [ ] Env switch to hide the debug overlay while keeping F12, so preview grabs need no --blank — (captured 2026-09-04)
+- [ ] Listen test: the 4 s start jingle overlaps the siren for 2 s — shorten the jingle or hold the siren until it ends — (captured 2026-09-04)
+- [ ] Loop seam: end loops one sample short of the wrap phase instead of duplicating the zero sample — (captured 2026-09-04)
+- [ ] Main.qml drops a tap that lands on a zero-tick frame (pendingPress cleared before the tick loop) — (captured 2026-09-04)
+- [ ] A deterministic debug script that eats a ghost, so ghost-eaten/eyes sounds can be verified unattended — (captured 2026-09-04)

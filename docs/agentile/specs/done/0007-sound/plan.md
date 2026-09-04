@@ -174,3 +174,21 @@ Gate: `node --test tests/*.test.mjs`.
 ## ADR
 
 None. The sound approach is already fixed in the brief's constraints.
+
+## As built (recorded at ship)
+
+- MUTE / NO AUDIO sit on HUD row 1, right-aligned; row 0 collided with
+  HIGH SCORE.
+- `soundState` is `{ waka, lastWakaTick }`; the start jingle is played by
+  `Main.qml` on the `start` action, never by the map.
+- `Sfx` keeps `wantedLoop` beside `currentLoop` so unmuting resumes at once;
+  muting also stops in-flight one-shots.
+- Loops place the last sample on the wrap phase (one duplicated zero sample
+  per period, inaudible); the reviewer noted the exact one-sample-short form.
+- The 4 s jingle overlaps the first 2 s of play with the siren; whether to
+  shorten the jingle or hold the siren is Keith's call by ear.
+- Start jingle is 14 eighth notes plus a held chord (4.0 s).
+- `PULSE_SERVER=/nonexistent` does not disable audio under the FFmpeg backend;
+  the no-audio path was proven by hiding the runtime sockets instead.
+- Ghost-eaten and eyes sounds were never reached in scripted play; their
+  mapping is pinned by tests.
