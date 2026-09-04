@@ -1,7 +1,7 @@
 ---
-max_iterations: 5          # items per /ag-loop invocation — a runaway guard
-pause_before_ship: true    # stop for human sign-off before each ship/merge
-pause_at_plan: route       # pause for plan review: always | route (foreground & spike specs) | never
+max_iterations: 10         # enough to drain the seven-spec queue in one pass
+pause_before_ship: false   # fully automated: ship without a human sign-off
+pause_at_plan: never       # fully automated: never pause for plan review
 stop_on_gate_failure: true # halt/pause on a failing gate rather than continuing
 verify_retry_limit: 1      # bounce a failed verify back to build this many times before pausing
 on_empty: watch            # under /loop, an empty backlog: watch (keep waiting) | stop (end the loop)
