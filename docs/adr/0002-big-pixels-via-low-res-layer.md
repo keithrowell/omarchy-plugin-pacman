@@ -42,6 +42,8 @@ A single Canvas-based renderer draws the game in native arcade units (224×248,
 `g` toggles modes. `PixelStage` keeps no game knowledge so it can be extracted
 into a reusable Quickshell component for other Omarchy apps.
 
+*Amended 2026-09-04 (spec 0003):* the native stage is 224×288 — the 224×248 maze plus the original's three HUD rows above and two below (`BOARD_ORIGIN` in `lib/scale.mjs`); game coordinates stay maze-relative and renderers add the offset.
+
 ## Consequences
 
 - Easier: one drawing path, sprites are small vector routines, theme recolouring
