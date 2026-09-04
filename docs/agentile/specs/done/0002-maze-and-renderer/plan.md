@@ -205,3 +205,26 @@ calls `setText(serialise(...))`. Create the directory first with
 ## ADR
 
 None — ADR-0002 already fixes the rendering decision this spec implements.
+
+## As built (recorded at ship)
+
+- DPR comes from `Quickshell.Hyprland` monitor scale (1.6 here) with
+  `Screen.devicePixelRatio` as fallback; `Screen` reported 2 and would have
+  produced 6.4-device-pixel blocks.
+- Qt's `Canvas` rasterises at item size × DPR, so a 224×248 logical scene was
+  drawn at ~358×397 and downsampled into the layer with linear filtering. The
+  reviewer caught the blur by counting off-palette pixels in the F12 grab. Fix in
+  `PixelStage` only: in arcade mode the scene is laid out at `native / dpr`
+  logical pixels and `scene.scale` is the integer `k`, so the canvas raster is
+  exactly 224×248 device pixels. The grab now contains only palette colours.
+- Smooth mode lays out at full size and the drawing code applies
+  `ctx.scale(stage.resolution)`; `Item.scale` on a Canvas would just upscale
+  a small raster.
+- `wallMask` wraps x rather than treating off-map as wall, so tunnel mouths
+  stay open. The house is drawn by its own double-rounded-rect routine because
+  it is the only one-tile-thick wall.
+- Two canvases: a backdrop (walls, door) repainted on theme/mode/size change,
+  and a per-frame pellet overlay. Needed to hold 60 fps in smooth mode
+  (software-rasterised Canvas).
+- `PixelStage`'s scale property is called `zoom` because `scale` is an `Item`
+  property.

@@ -1,7 +1,8 @@
 ---
 title: Maze data model, board renderer and PixelStage (arcade/smooth toggle)
 slug: maze-and-renderer
-status: in_progress
+status: shipped
+shipped_at: 2026-09-04T03:08:35Z
 depends_on: [app-shell]
 type: feature
 route: background
@@ -61,5 +62,5 @@ None. Auto-tiling of walls is the only fiddly part; if it balloons, fall back to
 
 ## Verification
 
-- `node --test tests/` green (maze parse, reachability, scale maths).
+- `node --test tests/*.test.mjs` green (maze parse, reachability, scale maths).
 - Manual: `bin/pacman` shows the maze; `g` flips modes; resizing keeps pixel blocks integer-sized in arcade mode; theme switch recolours; `F12` frame capture reviewed.
