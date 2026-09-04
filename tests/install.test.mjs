@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, existsSync, readFileSync, readdirSync, readlinkSync, lstatSync, symlinkSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, existsSync, readFileSync, writeFileSync, readdirSync, readlinkSync, lstatSync, symlinkSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -190,6 +190,57 @@ test("--uninstall removes the desktop file and the launcher, and is idempotent",
     assert.equal(second.code, 0, second.err);
     assert.match(second.out, /^desktop file: absent$/m);
     assert.match(second.out, /^launcher: absent$/m);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("--dry-run --uninstall says what it would remove and removes nothing", () => {
+  const home = scratchHome();
+  try {
+    run(home);
+    const result = run(home, ["--dry-run", "--uninstall"]);
+    assert.equal(result.code, 0, result.err);
+    assert.match(result.out, /^desktop file: would remove /m);
+    assert.match(result.out, /^launcher: would remove /m);
+    assert.ok(existsSync(desktopPath(home)));
+    assert.ok(existsSync(launcherPath(home)));
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("--uninstall leaves a desktop file whose Exec points elsewhere", () => {
+  const home = scratchHome();
+  try {
+    const dir = join(home, ".local", "share", "applications");
+    mkdirSync(dir, { recursive: true });
+    const foreign = "[Desktop Entry]\nType=Application\nName=Pacman\nExec=/opt/other/bin/pacman\n";
+    writeFileSync(desktopPath(home), foreign);
+    const result = run(home, ["--uninstall"]);
+    assert.equal(result.code, 0, result.err);
+    assert.match(result.out, /^desktop file: not ours, left alone /m);
+    assert.equal(readFileSync(desktopPath(home), "utf8"), foreign);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("--uninstall leaves an omarchy-pacman that is not our symlink", () => {
+  const home = scratchHome();
+  try {
+    symlinkSync("/opt/other/bin/pacman", launcherPath(home));
+    const linked = run(home, ["--uninstall"]);
+    assert.equal(linked.code, 0, linked.err);
+    assert.match(linked.out, /^launcher: not ours, left alone /m);
+    assert.equal(readlinkSync(launcherPath(home)), "/opt/other/bin/pacman");
+
+    rmSync(launcherPath(home));
+    writeFileSync(launcherPath(home), "#!/bin/sh\nexit 0\n");
+    const plain = run(home, ["--uninstall"]);
+    assert.equal(plain.code, 0, plain.err);
+    assert.match(plain.out, /^launcher: not ours, left alone /m);
+    assert.ok(lstatSync(launcherPath(home)).isFile());
   } finally {
     rmSync(home, { recursive: true, force: true });
   }
