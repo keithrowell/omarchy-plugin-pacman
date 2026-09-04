@@ -377,19 +377,24 @@ ShellRoot {
             focus: true
 
             // Held keys are tracked by press/release; auto-repeat is ignored
-            // so it cannot stutter the direction.
+            // so it cannot stutter the direction. Real presses are logged in
+            // debug mode so a stray keystroke from the desktop is visible.
             Keys.onPressed: event => {
+                if (window.debug && !event.isAutoRepeat) console.info("Debug: key event " + event.key + " on " + window.flow.screen);
                 event.accepted = event.isAutoRepeat ? true : window.handleKey(event.key);
             }
             Keys.onReleased: event => {
                 event.accepted = event.isAutoRepeat ? true : window.handleKeyRelease(event.key);
             }
 
-            // Focus leaving the window pauses the game.
+            // Focus leaving the window pauses the game. A debug key script
+            // owns its session, so stray desktop clicks do not derail it.
             readonly property bool windowActive: Window.active
             onWindowActiveChanged: {
                 if (window.debug) console.info("Debug: window " + (windowActive ? "active" : "inactive"));
-                if (!windowActive) window.loseFocus();
+                if (windowActive) return;
+                if (window.debugKeys.length > 0) console.info("Debug: focus loss ignored while the key script runs");
+                else window.loseFocus();
             }
 
             Component.onCompleted: forceActiveFocus()
