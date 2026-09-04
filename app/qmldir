@@ -1,3 +1,4 @@
 singleton Theme 1.0 Theme.qml
 singleton Settings 1.0 Settings.qml
+singleton Sfx 1.0 Sfx.qml
 PixelStage 1.0 PixelStage.qml

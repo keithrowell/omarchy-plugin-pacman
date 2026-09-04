@@ -18,11 +18,11 @@ belongs to the desktop, and recolours itself when the theme changes.
 | `q` | In a game: quit at once. On the title: hold for a second to quit |
 | `g` | Toggle arcade (big pixels) and smooth (full resolution) graphics |
 | `s` | Toggle scanlines (on the title, pause and game-over screens) |
-| `m` | Mute (coming with the sound spec) |
+| `m` | Mute and unmute (remembered; MUTE shows in the top-right corner while muted) |
 | F12 | Save a frame to `~/.local/state/pacman/frame.png` (only with `PACMAN_DEBUG=1`) |
 
-Any game key ends the attract demo (`g` and F12 do not). The high score and the graphics settings live
-in `~/.local/state/pacman/`.
+Any game key ends the attract demo (`g`, `m` and F12 do not). The high score, the graphics settings and
+mute live in `~/.local/state/pacman/`.
 
 ## Install
 
@@ -105,6 +105,19 @@ any window size; scanlines are optional. In **smooth** mode the same drawing
 is rendered at the window's full resolution with anti-aliasing. `g` switches
 between them and the choice is remembered. See ADR-0002 in `docs/adr/`.
 
+## Sound
+
+The sounds are original chiptune pieces in the arcade idiom, not samples of
+the original: an opening jingle, the alternating waka, a siren that climbs
+through five stages as the pellets run out, a fright loop while the ghosts
+are blue, the eyes hurrying home, a ghost eaten, the death, the extra life
+and the level clear. `tools/gen_sounds.py` synthesises them from square and
+triangle waves with numpy and writes 22 kHz mono WAVs under `assets/sfx/`;
+the files are committed and a test regenerates them to make sure they match
+the script. Playback is QtMultimedia's `SoundEffect`; without an audio device
+the game runs silent and shows NO AUDIO top-right. `m` mutes and the choice
+is remembered.
+
 ## Validation
 
 `omarchy-plugin-validate` rejects `manifest.json` with "manifest missing
@@ -122,8 +135,9 @@ This repo is the development checkout; the submodule under
 
 ```bash
 bin/pacman                        # run from the checkout
-node --test tests/*.test.mjs      # game rules, installer, icon
+node --test tests/*.test.mjs      # game rules, installer, icon, sounds
 python3 tools/gen-icon.py         # regenerate assets/icon.png after editing the grid
+python3 tools/gen_sounds.py       # regenerate assets/sfx/*.wav after editing a piece
 PACMAN_DEBUG=1 PACMAN_DEBUG_KEYS="Return,4000,F12,800,q" bin/pacman   # scripted keys and a frame grab
 python3 tools/make-preview.py --blank 80:120 ~/.local/state/pacman/frame.png preview.png
 ```

@@ -10,6 +10,7 @@ import "lib/attract.mjs" as Attract
 import "lib/attract-script.mjs" as AttractScript
 import "lib/input.mjs" as Input
 import "lib/player.mjs" as Player
+import "lib/sound-map.mjs" as SoundMap
 import "render/Board.js" as Board
 import "render/Sprites.js" as Sprites
 import "render/Hud.js" as Hud
@@ -20,19 +21,21 @@ import "render/Screens.js" as Screens
 // in native 224x288 units (ADR-0002), the maze offset below the HUD rows.
 // The game state lives in lib/game.mjs and advances in fixed 1/60 s ticks;
 // the screen flow around it (title, ready, pause, game over, the attract
-// demo) in lib/flow.mjs. This file only feeds them input and draws what
-// they return.
+// demo) in lib/flow.mjs. This file only feeds them input, draws what they
+// return and hands the frame's events to lib/sound-map.mjs, whose answer
+// (one-shots and the background loop) goes to the Sfx singleton.
 //
 // Keys: Enter/Space starts from the title; arrows / hjkl / WASD move; p or
-// Escape pauses and resumes; g toggles arcade/smooth; s toggles scanlines
-// wherever it is not "down" (title, paused, game over); Escape on the title
-// quits, q quits at once in a game and after a one-second hold on the
-// title; any key leaves the demo; F12 grabs a frame when PACMAN_DEBUG=1.
+// Escape pauses and resumes; g toggles arcade/smooth; m toggles mute; s
+// toggles scanlines wherever it is not "down" (title, paused, game over);
+// Escape on the title quits, q quits at once in a game and after a
+// one-second hold on the title; any key leaves the demo (g, m and F12 do
+// not); F12 grabs a frame when PACMAN_DEBUG=1.
 //
 // Debug hooks (PACMAN_DEBUG=1): the fps is logged once a second (with the
-// screen, phase, mode, fright timer and every ghost's state and tile) and
-// shown in the overlay with the player's tile and wanted direction, every
-// game event and flow transition is logged, and
+// screen, phase, mode, fright timer, the sound loop and every ghost's state
+// and tile) and shown in the overlay with the player's tile and wanted
+// direction, every game event, flow transition and sound call is logged, and
 // PACMAN_DEBUG_KEYS="Return,3000,p,1000,p,q" replays those keys through the
 // same handlers 1.5 s after start (keys are tapped: pressed and released),
 // a number in the list being a pause in milliseconds (Hyprland's permission
@@ -76,6 +79,8 @@ ShellRoot {
         // that is never drawn; a start or the demo creates the real one.
         property var flow: Flow.createFlow({ attract: attractOk })
         property var state: Game.createState(maze)
+        // The waka alternation and throttle, replaced by mapSounds as it goes.
+        property var soundState: SoundMap.createSoundState()
         // Unconsumed frame time, in seconds, sliced into Game.TICK steps.
         property real acc: 0
         // Direction keys currently held (names, latest last) and the latest
@@ -165,8 +170,10 @@ ShellRoot {
         }
 
         // Replace the flow, doing what the transition asks for: a new game on
-        // the way from the title into ready (the demo from its script's seed),
-        // held keys dropped on the way into a pause or the title.
+        // the way from the title into ready (the demo from its script's seed)
+        // with the opening jingle (not for the demo), held keys dropped on the
+        // way into a pause or the title. The loops follow the screen through
+        // playSounds every frame, so a pause silences the siren at once.
         function setFlow(next) {
             const prev = flow;
             if (next === prev) return;
@@ -175,13 +182,14 @@ ShellRoot {
                     state = Game.createState(maze, next.attract
                         ? { seed: attractScript.seed, highScore: Settings.highScore }
                         : { highScore: Settings.highScore });
+                    soundState = SoundMap.createSoundState();
                     acc = 0;
+                    if (!next.attract) Sfx.play("start");
                 }
                 if (next.screen === "paused" || next.screen === "title") {
                     pressed = [];
                     pendingPress = null;
                 }
-                // Spec 0007 (sound): stop the siren on "paused", restart it on the way back.
                 if (debug) {
                     console.info("Debug: flow " + prev.screen + (prev.attract ? " (demo)" : "") + " -> "
                         + next.screen + (next.attract ? " (demo)" : "") + " at tick " + state.tick + " score " + state.score);
@@ -208,6 +216,10 @@ ShellRoot {
             }
             if (key === Qt.Key_G) {
                 Settings.toggleMode();
+                return true;
+            }
+            if (key === Qt.Key_M) {
+                Settings.toggleMuted();
                 return true;
             }
             if (flow.attract) {
@@ -277,9 +289,10 @@ ShellRoot {
             act("pause");
         }
 
-        function handleEvents(events, s, f) {
+        function handleEvents(events, s, f, frameEvents) {
             for (let i = 0; i < events.length; i++) {
                 const e = events[i];
+                frameEvents.push(e);
                 if (e.type === "level-clear") console.info("Level clear: score " + s.score + " after " + s.tick + " ticks");
                 if (e.type === "game-over") console.info("Game over: score " + s.score + " on level " + s.level);
                 if ((e.type === "game-over" || e.type === "level-clear") && !f.attract) Settings.setHighScore(s.highScore);
@@ -288,6 +301,17 @@ ShellRoot {
                         + " lives " + s.lives + " left " + s.pelletsLeft + " phase " + s.phase);
                 }
             }
+        }
+
+        // The frame's events and the state they left, through the sound map
+        // and on to Sfx: the loop first, so a death silences the siren before
+        // death.wav starts, then the one-shots. Runs every frame, ticks or
+        // not, so a pause or the title stops the loop at once.
+        function playSounds(events) {
+            const r = SoundMap.mapSounds(soundState, events, state, flow.screen, flow.attract);
+            if (r.soundState !== soundState) soundState = r.soundState;
+            Sfx.setLoop(r.loop);
+            for (let i = 0; i < r.oneShots.length; i++) Sfx.play(r.oneShots[i]);
         }
 
         // One rendered frame: consume the elapsed time in fixed ticks. The game
@@ -299,13 +323,14 @@ ShellRoot {
             pendingPress = null;
             let f = flow;
             let s = state;
+            const events = [];
             while (acc >= Game.TICK) {
                 acc -= Game.TICK;
                 if (Flow.shouldStep(f)) {
                     const input = { wantDir: f.attract ? Attract.attractInput(attractScript, s.tick) : want };
                     const r = Game.step(s, input, Game.TICK);
                     s = r.state;
-                    handleEvents(r.events, s, f);
+                    handleEvents(r.events, s, f, events);
                     f = Flow.syncFlow(f, s.phase);
                     if (f.attract && Attract.attractEnded(attractScript, s.tick)) {
                         if (s.score !== attractScript.expectedScore) {
@@ -336,6 +361,7 @@ ShellRoot {
                 }
             }
             state = s;
+            playSounds(events);
         }
 
         function debugInfo() {
@@ -475,7 +501,9 @@ ShellRoot {
                         }
                         if (state.phase === "dying") Sprites.drawDeath(ctx, state.player, state.phaseTicks, palette);
                         else if (state.phase !== "game-over") Sprites.drawPacman(ctx, state.player, palette);
-                        Hud.drawHud(ctx, state, palette, Theme.fontFamily, { arcade: stage.arcade, blinkOn: window.blinkOn });
+                        Hud.drawHud(ctx, state, palette, Theme.fontFamily, {
+                            arcade: stage.arcade, blinkOn: window.blinkOn, muted: Settings.muted, audio: Sfx.available,
+                        });
                         Hud.drawEatenScore(ctx, state, palette, Theme.fontFamily);
                         if (flow.attract) Screens.drawAttractBanner(ctx, window.slowBlinkOn, palette, Theme.fontFamily);
                         if (flow.screen === "paused") Screens.drawPaused(ctx, palette, Theme.fontFamily);
@@ -520,7 +548,7 @@ ShellRoot {
             id: keyScript
             property int next: 0
             readonly property var names: ({
-                "g": Qt.Key_G, "q": Qt.Key_Q, "p": Qt.Key_P, "Escape": Qt.Key_Escape, "F12": Qt.Key_F12,
+                "g": Qt.Key_G, "m": Qt.Key_M, "q": Qt.Key_Q, "p": Qt.Key_P, "Escape": Qt.Key_Escape, "F12": Qt.Key_F12,
                 "Return": Qt.Key_Return, "Enter": Qt.Key_Return, "Space": Qt.Key_Space,
                 "Up": Qt.Key_Up, "Down": Qt.Key_Down, "Left": Qt.Key_Left, "Right": Qt.Key_Right,
                 "h": Qt.Key_H, "j": Qt.Key_J, "k": Qt.Key_K, "l": Qt.Key_L,
@@ -590,6 +618,7 @@ ShellRoot {
                     + " left " + window.state.pelletsLeft + " tick " + window.state.tick
                     + " | phase " + window.state.phase + " mode " + window.state.mode + " clock " + window.state.modeClock
                     + " fright " + window.state.frightTicks + " chain " + window.state.chain
+                    + " loop " + (Sfx.currentLoop !== "" ? Sfx.currentLoop : "-")
                     + " | " + window.debugGhosts());
                 window.frames = 0;
             }
