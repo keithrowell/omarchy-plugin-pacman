@@ -2,7 +2,7 @@
 title: "Ship it as an Omarchy plugin: menu entry, desktop file, dotfiles submodule, README"
 slug: install-as-plugin
 status: ready
-depends_on: [sound, game-flow-and-hud]
+depends_on: [game-flow-and-hud]
 type: feature
 route: background
 business_value: medium
@@ -29,7 +29,7 @@ desktop file, the way Sous is installed.
 - [ ] `bin/install` (idempotent bash): writes `~/.local/share/applications/Pacman.desktop` (`Exec=<plugin>/bin/pacman`, `Icon` a bundled `assets/icon.png` 256 px pixel-art Pac-Man in a neutral yellow, `StartupWMClass=quickshell` omitted since the class is shared), and prints — but does not apply — the JSON snippet for `omarchy-menu.jsonc` (`icon`, `label: Pacman`, `aliases: [pacman, game, arcade]`, `action: uwsm-app -- ~/.config/omarchy/plugins/com.keithrowell.pacman/bin/pacman`).
 - [ ] The menu entry is added to `~/.config/omarchy/extensions/omarchy-menu.jsonc` in the dotfiles repo, following the Sous entry; `omarchy-menu` lists Pacman and launches it.
 - [ ] Repo published as `keithrowell/omarchy-plugin-pacman` (private) and added as a submodule at `~/.config/omarchy/plugins/com.keithrowell.pacman`, with the `.config/.gitignore` allow rule, per the machine-setup skill. This project directory stays the development checkout; the submodule tracks the same remote.
-- [ ] `README.md`: what it is, keys (arrows/hjkl/WASD, Enter, p, g, s, m, q), install steps, how sounds are generated, theme behaviour, a `preview.png` screenshot in the current theme.
+- [ ] `README.md`: what it is, keys (arrows/hjkl/WASD, Enter, p, g, s, m, q), install steps, theme behaviour (sound generation and the `m` key are documented when the sound spec ships), a `preview.png` screenshot in the current theme.
 - [ ] `manifest.json` validated with `omarchy-plugin-validate` (or documented why `kinds: []` fails validation and is accepted, as Sous is).
 - [ ] `bin/pacman` resolves its own directory (`readlink -f`) so it works from the submodule path and from this checkout.
 - [ ] Nothing named `pacman` is ever placed on `PATH` — that shadows the Arch package manager. Any PATH launcher or symlink is called `omarchy-pacman`; the in-repo `bin/pacman` is only ever invoked by full path (desktop file, menu action).
