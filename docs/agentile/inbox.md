@@ -24,7 +24,7 @@ Drop stubs with `/ag-capture <idea>`. Shape them into specs with `/ag-shape`. A 
 - [ ] Non-Hyprland DPR source for PixelStage if the app ever runs outside Omarchy — (captured 2026-09-04)
 - [ ] Clear held direction keys when the window loses focus (workspace switch mid-hold keeps Pac-Man moving) — (captured 2026-09-04)
 - [ ] Tune CORNER_TOLERANCE once ghosts land: a press just after a tile centre snaps up to 4 px backwards, a small visible hop — (captured 2026-09-04)
-- [ ] Debug overlay line overlaps the lives row once lives > 3 — (captured 2026-09-04)
+- [ ] Debug overlay line overlaps the lives row once lives > 3, and overflows 224 px in the demo so the L<n> token clips; print L<n> before the phase token — (captured 2026-09-04, updated 2026-09-05)
 - [ ] Decide whether the row-11 no-up tiles should move to this maze's real up-junctions (cols 9 and 18) — (captured 2026-09-04)
 - [ ] Clear a pending ghost `reverse` when frightened expires (one-word fix in game.mjs) — (captured 2026-09-04)
 - [ ] Arcade fidelity: ghosts in the house turn blue on a power pellet and emerge frightened — (captured 2026-09-04)
