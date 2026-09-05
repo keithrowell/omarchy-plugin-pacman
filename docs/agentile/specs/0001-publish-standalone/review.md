@@ -193,3 +193,84 @@ two-line comment in `lib/maze.mjs:4-5`. Scope stayed inside the spec
 - `README.md:40` snippet and `as-built.md` "Menu action quoting": align
   with the fixed form.
 - Optionally Should-fix 2 (Development section wording).
+
+## Re-review (commit ac2a670) — 2026-09-06
+
+### Verdict: PASS
+
+The blocking defect is fixed and proven by execution, the should-fix and
+the nit are addressed, and nothing else moved. Ready for the ship-step
+human sign-off (tag `v1.0.0`, push, visibility, submodule fast-forward).
+
+### Evidence
+
+**1. Menu action now runs.** `bin/install:44-46` collapses a `$HOME`-rooted
+`LAUNCH` to a literal `$HOME/...` (`DISPLAY_LAUNCH="\$HOME${LAUNCH#"$HOME"}"`);
+anything outside `$HOME` keeps its absolute path. Reproduced at the
+canonical clone location under a fake HOME: cloned `ac2a670` to
+`<fakehome>/.config/omarchy/plugins/com.keithrowell.pacman`, ran
+`HOME=<fakehome> bin/install --dry-run` there, decoded the printed
+`action` with `JSON.parse`, and ran it the way omarchy-shell does with a
+stub `uwsm-app` that checks `[ -x "$1" ]`:
+
+```
+decoded action: uwsm-app -- "$HOME/.config/omarchy/plugins/com.keithrowell.pacman/bin/pacman"
+HOME=<fakehome> bash -lc "$ACTION"
+OK: would exec <fakehome>/.config/omarchy/plugins/com.keithrowell.pacman/bin/pacman
+exit=0
+```
+
+Same for this worktree's own action (path containing a space, real HOME):
+`uwsm-app -- "$HOME/Dropbox (Maestral)/lab/omarchy_pacman/.claude/worktrees/agent-a3a0121ccba1adfec/bin/pacman"`
+→ `OK: would exec /home/keith/Dropbox (Maestral)/.../bin/pacman`, exit 0.
+The outside-`$HOME` case (fresh clone under `/tmp`) was already shown in
+the first review to print the absolute quoted path, and that branch of
+`bin/install` is unchanged.
+
+**2. Tests execute the action.** `tests/install.test.mjs` gains
+`stubUwsmAppDir()` / `runMenuAction(action, home)` which spawn
+`bash -lc "<action>"` with `HOME` set and the stub on PATH, and three
+cases now assert `status === 0` and stdout `OK:<LAUNCH>`:
+- "the printed menu snippet … running this checkout's own bin/pacman" —
+  scratch HOME, checkout outside `$HOME` (absolute quoted path);
+- "without uwsm-app … still resolves" — bare quoted path, `[ -x … ]`
+  under `bash -lc`;
+- "the menu action expands $HOME (not a quoted ~) for a $HOME-rooted
+  checkout, and it resolves" — `HOME=dirname(ROOT)`, asserts the literal
+  `"$HOME<tail>"` form *and* that it resolves.
+
+**3. Gate** — `node --test tests/*.test.mjs`:
+
+```
+ℹ tests 296
+ℹ pass 296
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+```
+
+**4. Docs and nit.** `README.md:40` snippet is now
+`"uwsm-app -- \"$HOME/.config/omarchy/plugins/com.keithrowell.pacman/bin/pacman\""`
+with a short note (`README.md:44-47`) on why `$HOME` rather than `~`;
+as-built's "Menu action quoting" records the wrong first attempt and the
+fix; the owner-specific "This repo is the development checkout…" sentence
+is gone from "Development". `bin/install:85` wraps the requirements check
+in `(( ! UNINSTALL ))`: `--dry-run --uninstall` on a PATH lacking `qs`
+prints no `requirements:` line, while `--dry-run` on the same PATH prints
+`requirements: missing quickshell — install with: sudo pacman -S quickshell`.
+
+**5. No regressions.** `find . -name .git -prune -o -type l -print` empty;
+no `#rrggbb` literal added in `app/`, `lib/`, `bin/`, `shell.qml` across
+`master...HEAD`; the only `lib/` change is still the two-line comment in
+`lib/maze.mjs`. The fix commit touches only `bin/install`, `README.md`,
+`tests/install.test.mjs` and `as-built.md`.
+
+### Remaining (non-blocking)
+
+- Nit 5 from the first review stands as informational: `README.md`
+  "Maintainer" names the lab path; acceptable inside that subsection.
+- Post-merge check from the plan (run `bin/install` at the real
+  `~/.config/omarchy/plugins/com.keithrowell.pacman` after fast-forward) is
+  a ship-step item, not done here. Note that the installed
+  `omarchy-menu.jsonc` entry uses the unquoted `~` form, which still works;
+  it need not be re-pasted.
