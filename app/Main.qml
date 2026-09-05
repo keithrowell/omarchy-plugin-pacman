@@ -139,6 +139,10 @@ ShellRoot {
                 ready: String(Theme.yellow),
                 gameOver: String(Theme.red),
                 eatenScore: String(Theme.cyan),
+                fruitScore: String(Theme.cyan),
+                // The resolved role -> hex object, rebuilt on every theme reload,
+                // for the fruit bitmaps (app/render/Sprites.js drawBitmap).
+                theme: Theme.palette,
                 // The title, the quit bar and the pause dim (the background at 60 %).
                 title: String(Theme.accent),
                 quit: String(Theme.red),
@@ -409,6 +413,7 @@ ShellRoot {
                 wantDir: state.player.wantDir !== null ? state.player.wantDir : Input.wantedDirection(pressed),
                 mode: state.mode,
                 phase: flow.screen + (flow.attract ? "/demo" : ""),
+                level: state.level,
                 fright: state.frightTicks,
             };
         }
@@ -492,8 +497,9 @@ ShellRoot {
                     }
                 }
 
-                // Everything that moves: pellets, the ghosts, the player (or
-                // the death animation), the HUD, the overlays and the debug
+                // Everything that moves: pellets, the fruit (under the
+                // ghosts, as in the arcade), the ghosts, the player (or the
+                // death animation), the HUD, the overlays and the debug
                 // line, redrawn every frame over a transparent canvas; on the
                 // title, the title screen over its own background.
                 Canvas {
@@ -535,6 +541,7 @@ ShellRoot {
                             return;
                         }
                         Board.drawPellets(ctx, state.board, palette, window.timeMs);
+                        Sprites.drawFruit(ctx, state, palette);
                         if (window.showGhosts) {
                             // Eyes last so they overlay a ghost standing on the same tile.
                             const frame = Math.floor(state.tick / 8) % 2;
@@ -553,6 +560,7 @@ ShellRoot {
                             blinkOn: window.blinkOn, muted: Settings.muted, audio: Sfx.available,
                         });
                         Hud.drawEatenScore(ctx, state, palette, Theme.fontFamily);
+                        Hud.drawFruitScore(ctx, state, palette, Theme.fontFamily);
                         if (flow.attract) Screens.drawAttractBanner(ctx, window.slowBlinkOn, palette, Theme.fontFamily);
                         if (flow.screen === "paused") Screens.drawPaused(ctx, palette, Theme.fontFamily);
                         if (window.debug) Hud.drawDebug(ctx, window.debugInfo(), palette, Theme.fontFamily);
