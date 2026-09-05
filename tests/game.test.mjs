@@ -8,12 +8,13 @@ import {
   createState, step, resetGame, TICK, MAX_DT,
   GHOST_SCORES, EXTRA_LIFE_SCORE, READY_TICKS, DYING_TICKS, LEVEL_CLEAR_TICKS, EATEN_FREEZE_TICKS,
   GLOBAL_DOT_LIMITS, personalDotLimit, noPelletReleaseTicks,
-  ghostFlashing, anyFrightened, elroyStage, ghostSpeedFor,
+  ghostFlashing, anyFrightened, elroyStage, ghostSpeedFor, pelletsEaten,
 } from "../lib/game.mjs";
 import { playerSpeed, playerFrightenedSpeed, ghostSpeed, ghostFrightenedSpeed, tunnelSpeed, elroySpeed } from "../lib/speeds.mjs";
 import { frightenedTicks } from "../lib/modes.mjs";
 import { seed } from "../lib/rng.mjs";
 import { createGhosts } from "../lib/ghosts.mjs";
+import { FRUIT_SPAWN_COUNTS, FRUIT_TICKS, FRUIT_SCORE_TICKS, fruitForLevel, fruitTile } from "../lib/fruit.mjs";
 
 const maze = parseMaze(LEVEL_1);
 const centre = t => t * TILE_PX + TILE_PX / 2;
@@ -81,6 +82,37 @@ function eatN(state, n) {
   let s = state;
   for (let i = 0; i < n; i++) s = eatNext(s);
   return s;
+}
+
+/** Like eatNext, but returns the events of the tick the pellet was eaten on too. */
+function eatNextEvents(state) {
+  let target = null;
+  for (let y = state.board.height - 1; y >= 0 && !target; y--) {
+    for (let x = 0; x < state.board.width; x++) {
+      if (tileAt(state.board, x, y) === TILE.PELLET) { target = { x, y }; break; }
+    }
+  }
+  assert.ok(target, "a pellet remains");
+  let s = withPlayer(state, { x: centre(target.x), y: centre(target.y), dir: "left", wantDir: null, stopped: false });
+  for (let i = 0; i < 4; i++) {
+    const r = step(s, { wantDir: null }, TICK);
+    s = r.state;
+    if (r.events.some(e => e.type === "pellet")) return { state: s, events: r.events };
+    s = withPlayer(s, { x: centre(target.x), y: centre(target.y) });
+  }
+  assert.fail(`pellet at ${target.x},${target.y} not eaten`);
+}
+
+/** Like eatN, but collects the events of every eaten tick, in order. */
+function eatNWithEvents(state, n) {
+  let s = state;
+  const events = [];
+  for (let i = 0; i < n; i++) {
+    const r = eatNextEvents(s);
+    s = r.state;
+    events.push(...r.events);
+  }
+  return { state: s, events };
 }
 
 test("TICK is 1/60 and the dt guard is 50 ms", () => {
@@ -341,6 +373,8 @@ test("createState: four ghosts, the ready phase, scatter mode, RNG from the seed
   assert.equal(s.frightTicks, 0);
   assert.equal(s.chain, 0);
   assert.equal(s.lastEaten, null);
+  assert.equal(s.fruit, null);
+  assert.equal(s.fruitScore, null);
   assert.deepEqual(s.globalDots, { active: false, count: 0 });
   assert.equal(s.dotTimer, 0);
   assert.equal(s.extraLifeAwarded, false);
@@ -936,4 +970,181 @@ test("level 21: no frightened time, no NaN, no throw through 2000 ticks of autop
   assert.equal(after.score, 50);
   assert.equal(ghostNamed(after, "blinky").reverse, true);
   assert.equal(ghostNamed(after, "blinky").state, "normal");
+});
+
+// --- Fruit ---------------------------------------------------------------
+
+test("the level's fruit spawns exactly once at the 70th pellet of the level, by the level's table", () => {
+  let s = eatN(fresh({ ghosts: false }), 69);
+  assert.equal(s.fruit, null);
+  assert.equal(pelletsEaten(s), 69);
+  const r = eatNextEvents(s);
+  s = r.state;
+  assert.deepEqual(r.events.filter(e => e.type === "fruit"), [{ type: "fruit", kind: "cherry" }]);
+  assert.deepEqual(s.fruit, { kind: "cherry", ticksLeft: FRUIT_TICKS });
+  assert.equal(pelletsEaten(s), 70);
+
+  const s3 = eatN(fresh({ level: 3, ghosts: false }), 70);
+  assert.equal(s3.fruit.kind, "orange");
+});
+
+test("a fruit never spawns twice for the same pellet count, expires after 9 s, and spawns again at 170", () => {
+  let s = eatN(fresh({ ghosts: false }), 70);
+  assert.ok(s.fruit);
+
+  // Park the player against a wall on an empty tile so nothing else is eaten while it counts down.
+  const parked = withPlayer(s, { x: centre(5), y: centre(17), dir: "up", stopped: true });
+  const almost = run(parked, FRUIT_TICKS - 1);
+  assert.equal(almost.state.fruit.ticksLeft, 1);
+  assert.ok(!almost.events.some(e => e.type === "fruit"));
+  const expired = run(almost.state, 1);
+  assert.equal(expired.state.fruit, null, "gone after 540 ticks");
+  assert.ok(!expired.events.some(e => e.type === "fruit"));
+
+  // Pellet 71: no second spawn.
+  let r = eatNextEvents(expired.state);
+  s = r.state;
+  assert.ok(!r.events.some(e => e.type === "fruit"));
+  assert.equal(pelletsEaten(s), 71);
+
+  // Continue to 169: still nothing.
+  s = eatN(s, 98);
+  assert.equal(pelletsEaten(s), 169);
+  assert.equal(s.fruit, null);
+
+  // The 170th: spawns again, with a fresh ticksLeft.
+  r = eatNextEvents(s);
+  s = r.state;
+  assert.deepEqual(r.events.filter(e => e.type === "fruit"), [{ type: "fruit", kind: "cherry" }]);
+  assert.deepEqual(s.fruit, { kind: "cherry", ticksLeft: FRUIT_TICKS });
+
+  // Pellet 171: nothing, and further pellets never emit a third spawn.
+  const rest = eatNWithEvents(s, 30);
+  assert.ok(!rest.events.some(e => e.type === "fruit"));
+  assert.equal(pelletsEaten(rest.state), 200);
+});
+
+test("death clears the fruit and its popup without resetting the level's pellet count; the 170th spawn still happens after a life is lost", () => {
+  let s = eatN(fresh(), 70);
+  assert.ok(s.fruit);
+  const t = tileOf(s.player, s.board);
+  s = withGhost(s, "blinky", ghostAt("blinky", t.x, t.y, "left", "normal"));
+  const r = step(s, { wantDir: null }, TICK);
+  assert.ok(r.events.some(e => e.type === "death"));
+  assert.equal(r.state.fruit, null);
+  assert.equal(r.state.fruitScore, null);
+  const afterAnim = run(r.state, DYING_TICKS + READY_TICKS).state;
+  assert.equal(afterAnim.fruit, null);
+  assert.equal(afterAnim.phase, "playing");
+  assert.equal(pelletsEaten(afterAnim), 70, "the level's pellet count survives the death");
+  const spawned = eatN(afterAnim, 100); // pellets 71..170
+  assert.ok(spawned.fruit, "the 170th spawn still happens after a life is lost");
+  assert.equal(spawned.fruit.kind, "cherry");
+});
+
+test("eating the fruit scores the level's points, shows the popup for 2 s, and does not freeze the player", () => {
+  let s = fresh({ level: 3, ghosts: false });
+  s = Object.assign({}, s, { fruit: { kind: "orange", ticksLeft: 100 } });
+  const before = s.score;
+  // One tick from tile 13 (the eat tile), heading left.
+  s = withPlayer(s, { x: centre(14) - 3.5, y: centre(17), dir: "left", wantDir: null, stopped: false });
+  const r = step(s, { wantDir: null }, TICK);
+  assert.deepEqual(r.events, [{ type: "fruit-eaten", kind: "orange", score: 500 }]);
+  assert.equal(r.state.score, before + 500);
+  assert.equal(r.state.fruit, null);
+  assert.deepEqual(r.state.fruitScore, { kind: "orange", score: 500, ticksLeft: FRUIT_SCORE_TICKS });
+  assert.equal(r.state.freezeTicks, 0, "eating fruit does not freeze the game");
+  const moved = step(r.state, { wantDir: null }, TICK).state;
+  assert.notEqual(moved.player.x, r.state.player.x, "the player keeps moving next tick");
+
+  // Park on tile 13 facing up (stopped by the house wall) and let the popup expire.
+  const parked = withPlayer(r.state, { x: centre(13), y: centre(17), dir: "up", stopped: true });
+  const almost = run(parked, FRUIT_SCORE_TICKS - 1).state;
+  assert.equal(almost.fruitScore.ticksLeft, 1);
+  const gone = run(almost, 1).state;
+  assert.equal(gone.fruitScore, null);
+});
+
+test("the fruit's points follow the level's table (cherry 100 on level 1, key 5000 on level 13)", () => {
+  for (const [level, kind, score] of [[1, "cherry", 100], [13, "key", 5000]]) {
+    let s = fresh({ level, ghosts: false });
+    s = Object.assign({}, s, { fruit: { kind, ticksLeft: 200 } });
+    s = withPlayer(s, { x: centre(14) - 3.5, y: centre(17), dir: "left" });
+    const r = step(s, { wantDir: null }, TICK);
+    assert.deepEqual(r.events.filter(e => e.type === "fruit-eaten"), [{ type: "fruit-eaten", kind, score }]);
+    assert.equal(r.state.score, score, `level ${level}`);
+  }
+});
+
+test("crossing tile 14 alone does not eat the fruit; only tile 13, the maze-derived eat tile, does", () => {
+  assert.deepEqual(fruitTile(maze), { x: 13, y: 17 });
+  let s = fresh({ level: 1, ghosts: false });
+  s = Object.assign({}, s, { fruit: { kind: "cherry", ticksLeft: 200 } });
+  s = withPlayer(s, { x: centre(15) - 3.5, y: centre(17), dir: "left" });
+  const onFourteen = step(s, { wantDir: null }, TICK);
+  assert.deepEqual(tileOf(onFourteen.state.player, onFourteen.state.board), { x: 14, y: 17 });
+  assert.ok(!onFourteen.events.some(e => e.type === "fruit-eaten"));
+  assert.ok(onFourteen.state.fruit, "still on the board");
+
+  let cur = onFourteen.state;
+  let eaten = false;
+  for (let i = 0; i < 10 && !eaten; i++) {
+    const r = step(cur, { wantDir: null }, TICK);
+    cur = r.state;
+    if (r.events.some(e => e.type === "fruit-eaten")) eaten = true;
+  }
+  assert.ok(eaten, "eaten once tile 13 is reached");
+});
+
+test("the point popup is text only: standing on the tile while it shows emits nothing", () => {
+  let s = fresh({ level: 1, ghosts: false });
+  s = Object.assign({}, s, { fruit: null, fruitScore: { kind: "cherry", score: 100, ticksLeft: 50 } });
+  s = withPlayer(s, { x: centre(13), y: centre(17), dir: "up", stopped: true });
+  const r = step(s, { wantDir: null }, TICK);
+  assert.deepEqual(r.events, []);
+});
+
+test("the level-clear flash clears the fruit and its popup, and they stay clear under READY!", () => {
+  const withFruit = Object.assign({}, lastPellet(), {
+    fruit: { kind: "cherry", ticksLeft: 300 },
+    fruitScore: { kind: "strawberry", score: 300, ticksLeft: 50 },
+  });
+  const s = withGhost(withFruit, "blinky", { x: centre(26), y: centre(1), dir: "left" });
+  const r = run(s, 8);
+  const clear = r.events.find(e => e.type === "level-clear");
+  assert.ok(clear, "level-clear event");
+  const atClear = run(s, clear.tick - s.tick).state;
+  assert.equal(atClear.fruit, null);
+  assert.equal(atClear.fruitScore, null);
+  const l2 = run(atClear, LEVEL_CLEAR_TICKS).state;
+  assert.equal(l2.phase, "ready");
+  assert.equal(l2.fruit, null, "no fruit under READY!");
+  assert.equal(l2.fruitScore, null);
+});
+
+test("the fruit and popup timers pause with the rest of the game: a ghost-eaten freeze and the ready phase", () => {
+  const frozen = Object.assign({}, fresh(), {
+    fruit: { kind: "cherry", ticksLeft: 50 },
+    freezeTicks: 10,
+    lastEaten: { x: 0, y: 0, score: 200, ghost: "blinky" },
+  });
+  assert.equal(run(frozen, 5).state.fruit.ticksLeft, 50, "unchanged during the freeze");
+
+  const ready = Object.assign({}, createState(maze), { fruit: { kind: "cherry", ticksLeft: 50 } });
+  const stillReady = run(ready, 5).state;
+  assert.equal(stillReady.phase, "ready");
+  assert.equal(stillReady.fruit.ticksLeft, 50, "unchanged during the ready pause");
+});
+
+test("fruit points can award the extra life like any other points", () => {
+  let s = Object.assign({}, fresh({ ghosts: false, level: 1 }), {
+    score: EXTRA_LIFE_SCORE - 100,
+    fruit: { kind: "cherry", ticksLeft: 200 },
+  });
+  s = withPlayer(s, { x: centre(14) - 3.5, y: centre(17), dir: "left" });
+  const r = step(s, { wantDir: null }, TICK);
+  assert.ok(r.events.some(e => e.type === "fruit-eaten"));
+  assert.deepEqual(r.events.filter(e => e.type === "extra-life"), [{ type: "extra-life" }]);
+  assert.equal(r.state.score, EXTRA_LIFE_SCORE);
+  assert.equal(r.state.lives, 4);
 });

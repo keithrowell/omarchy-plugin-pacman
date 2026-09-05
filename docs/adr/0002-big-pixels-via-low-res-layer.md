@@ -48,6 +48,8 @@ into a reusable Quickshell component for other Omarchy apps.
 
 *Amended 2026-09-05 (spec 0003 remove-smooth-mode):* smooth mode and the `g` toggle were removed from the game; `PixelStage` keeps its `mode` property and smooth fit so the component stays reusable.
 
+*Amended 2026-09-05 (spec 0004 fruit-bonus):* the first bitmap sprites arrived — letter-per-pixel strings with a letter→theme-role map, drawn as 1×1 native rects by `Sprites.drawBitmap`; the format is the convention for any further pixel art (inbox: Pac-Man/ghost bitmaps).
+
 ## Consequences
 
 - Easier: one drawing path, sprites are small vector routines, theme recolouring

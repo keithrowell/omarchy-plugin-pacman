@@ -1,9 +1,13 @@
 .pragma library
 .import "../lib/scale.mjs" as Scale
+.import "../lib/fruit.mjs" as Fruit
+.import "../lib/fruit-sprites.mjs" as FruitSprites
 
 // Sprites drawn as small vector routines, drawn once in native units for the
 // arcade stage (ADR-0002). No Qt, no Theme: entities and a palette object
-// come in as arguments.
+// come in as arguments. The fruit is the exception: a hand-pixelled bitmap
+// (lib/fruit-sprites.mjs), drawn 1x1 native rects at a time by drawBitmap
+// (ADR-0002 amendment) rather than a vector routine.
 
 var TILE = 8;
 var BOARD_WIDTH = 224;
@@ -197,5 +201,61 @@ function drawDeath(ctx, player, ticks, palette) {
             ctx.fillRect(Math.round(player.x + r * Math.cos(a)) - 1, Math.round(player.y + r * Math.sin(a)) - 1, 2, 2);
         }
     }
+    ctx.restore();
+}
+
+// Fruit: a hand-pixelled bitmap (lib/fruit-sprites.mjs), one letter per
+// native pixel, painted as 1x1 rects so the arcade upscale shows exactly
+// what is in the data (ADR-0002 amendment, spec 0004).
+
+/** { width, height } of a bitmap, from its rows. */
+function bitmapSize(bitmap) {
+    return { width: bitmap.rows[0].length, height: bitmap.rows.length };
+}
+
+/**
+ * Paint `bitmap` with its top-left at the integer native coordinates (x, y).
+ * `colours` is a plain role -> CSS-colour object (palette.theme); a role
+ * missing from it draws nothing for that letter rather than throwing, so a
+ * theme short a key just loses that detail instead of crashing the paint.
+ * One fill per colour: the letters are grouped first so each fillStyle is
+ * set once regardless of how many pixels use it.
+ */
+function drawBitmap(ctx, bitmap, x, y, colours) {
+    var letters = Object.keys(bitmap.roles);
+    for (var li = 0; li < letters.length; li++) {
+        var ch = letters[li];
+        var colour = colours[bitmap.roles[ch]];
+        if (colour === undefined) continue;
+        ctx.fillStyle = colour;
+        ctx.beginPath();
+        for (var row = 0; row < bitmap.rows.length; row++) {
+            var line = bitmap.rows[row];
+            for (var col = 0; col < line.length; col++) {
+                if (line[col] === ch) ctx.rect(x + col, y + row, 1, 1);
+            }
+        }
+        ctx.fill();
+    }
+}
+
+/**
+ * The level's fruit, if one is showing (`state.fruit`), centred on the
+ * house's own centre line at the moat row (lib/fruit.mjs fruitSpot), offset
+ * by BOARD_ORIGIN and clipped to the board like drawPacman. `palette` needs
+ * `theme` (the resolved role -> hex object, Theme.palette).
+ */
+function drawFruit(ctx, state, palette) {
+    if (!state.fruit) return;
+    var bitmap = FruitSprites.FRUIT_SPRITES[state.fruit.kind];
+    var spot = Fruit.fruitSpot(state.maze);
+    var size = bitmapSize(bitmap);
+
+    ctx.save();
+    ctx.translate(Scale.BOARD_ORIGIN.x, Scale.BOARD_ORIGIN.y);
+    ctx.beginPath();
+    ctx.rect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
+    ctx.clip();
+    drawBitmap(ctx, bitmap, Math.round(spot.x - size.width / 2), Math.round(spot.y - size.height / 2), palette.theme);
     ctx.restore();
 }

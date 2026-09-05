@@ -27,10 +27,10 @@ function map(events, state, screen, attract, soundState) {
 const pellet = { type: "pellet", tile: { x: 1, y: 1 } };
 const power = { type: "power", tile: { x: 1, y: 3 } };
 
-test("SOUNDS lists the fourteen files and LOOPS the seven background layers", () => {
+test("SOUNDS lists the fifteen files and LOOPS the seven background layers", () => {
   assert.deepEqual(SOUNDS, [
     "start", "waka-a", "waka-b", "siren-1", "siren-2", "siren-3", "siren-4", "siren-5",
-    "fright", "eyes", "ghost-eaten", "death", "extra-life", "level-clear",
+    "fright", "eyes", "ghost-eaten", "death", "extra-life", "level-clear", "fruit",
   ]);
   assert.deepEqual(LOOPS, ["siren-1", "siren-2", "siren-3", "siren-4", "siren-5", "fright", "eyes"]);
   for (const name of LOOPS) assert.ok(SOUNDS.includes(name), name);
@@ -79,15 +79,16 @@ test("two pellet events in one batch play a single waka", () => {
   assert.deepEqual(r.oneShots, ["waka-a"]);
 });
 
-test("ghost-eaten, death, extra-life and level-clear map to their files, in event order", () => {
+test("ghost-eaten, death, extra-life, level-clear and fruit-eaten map to their files, in event order", () => {
   const events = [
     { type: "ghost-eaten", chain: 1, ghost: "blinky", score: 200 },
     { type: "extra-life" },
     { type: "death" },
     { type: "level-clear" },
+    { type: "fruit-eaten", kind: "cherry", score: 100 },
   ];
   const r = map(events, playing({ tick: 100 }));
-  assert.deepEqual(r.oneShots, ["ghost-eaten", "extra-life", "death", "level-clear"]);
+  assert.deepEqual(r.oneShots, ["ghost-eaten", "extra-life", "death", "level-clear", "fruit"]);
   assert.deepEqual(r.soundState, createSoundState(), "no waka: the sound state is untouched");
 });
 
@@ -95,6 +96,7 @@ test("events with no sound of their own are silent, and start is never an event 
   const events = [
     { type: "mode", mode: "chase" }, { type: "ghost-exit", ghost: "pinky" }, { type: "ready" },
     { type: "level-start", level: 2 }, { type: "game-over" }, { type: "start" }, { type: "bogus" },
+    { type: "fruit", kind: "cherry" },
   ];
   assert.deepEqual(map(events, playing()).oneShots, []);
   assert.deepEqual(map([], playing()).oneShots, []);
@@ -161,7 +163,7 @@ test("title, paused, gameover and initials discard one-shots; ready, dying and l
 
 test("the attract demo is silent: no one-shots and no loop", () => {
   const frightened = withGhost(playing({ tick: 50 }), "blinky", { state: "frightened" });
-  const r = map([pellet, { type: "ghost-eaten", chain: 1 }, { type: "death" }], frightened, "playing", true);
+  const r = map([pellet, { type: "ghost-eaten", chain: 1 }, { type: "death" }, { type: "fruit-eaten", kind: "cherry", score: 100 }], frightened, "playing", true);
   assert.deepEqual(r, { oneShots: [], loop: null, soundState: createSoundState() });
 });
 
@@ -195,6 +197,6 @@ test("every loop and one-shot name mapSounds can emit is in SOUNDS", () => {
     for (const n of r.oneShots) names.add(n);
     names.add(r.loop);
   }
-  for (const n of ["ghost-eaten", "death", "extra-life", "level-clear"]) names.add(map([{ type: n }], playing()).oneShots[0]);
+  for (const n of ["ghost-eaten", "death", "extra-life", "level-clear", "fruit-eaten"]) names.add(map([{ type: n }], playing()).oneShots[0]);
   for (const n of names) assert.ok(SOUNDS.includes(n), String(n));
 });

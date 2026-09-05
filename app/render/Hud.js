@@ -1,12 +1,16 @@
 .pragma library
 .import "Sprites.js" as Sprites
 .import "../lib/scale.mjs" as Scale
+.import "../lib/fruit.mjs" as Fruit
+.import "../lib/fruit-sprites.mjs" as FruitSprites
 
 // The HUD rows above and below the maze, in native units (224x288 stage),
 // plus the texts that sit on the board between lives (READY!, GAME OVER, a
 // ghost's score). Text is the pixel font at 8 px so each glyph fills one 8x8
 // tile, as in the original. No Qt, no Theme: the game state, a palette
-// object and the font family name come in as arguments.
+// object and the font family name come in as arguments. `palette` now also
+// needs `theme` (the resolved role -> hex object) for the fruit row's
+// bitmaps.
 
 var FONT_PX = 8;
 
@@ -23,9 +27,14 @@ var LIFE_Y = 280;
 var LIFE_RADIUS = 5;
 var LIFE_MOUTH = 35 * Math.PI / 180;
 
-// The level indicator, right-aligned on the bottom row.
-var LEVEL_RIGHT = 216;
-var LEVEL_Y = 280;
+// The fruit row, bottom-right, replacing LEVEL n (the original cabinet has
+// no level text either): up to FRUIT_ROW_LENGTH 16-px slots, newest (the
+// level's own fruit) at the right; the leftmost slot at full length (x
+// 105..119 centred on 112) clears the spare lives (at most four wedges,
+// ending at x 81).
+var FRUIT_RIGHT = 216;
+var FRUIT_STEP = 16;
+var FRUIT_Y = 280;
 
 // MUTE / NO AUDIO, right-aligned on row 1 (row 0 is full: HIGH SCORE ends
 // at 152, where NO AUDIO would start).
@@ -47,12 +56,13 @@ function fontString(family) {
 
 /**
  * 1UP and the score top-left, HIGH SCORE and its value top-centre, the
- * spare lives (lives - 1) bottom-left, LEVEL n bottom-right, and READY! or
- * GAME OVER on the board while the phase says so. `palette` needs
- * { text, muted, pacman, ready, gameOver }. `opts` (optional) is
- * { blinkOn, muted, audio }: 1UP blinks, drawn only while blinkOn, otherwise
- * it is steady; MUTE sits top-right (row 1) while muted, or NO AUDIO when
- * audio is false (no device), in the muted colour.
+ * spare lives (lives - 1) bottom-left, the last seven levels' fruit
+ * bottom-right (fruitRow), and READY! or GAME OVER on the board while the
+ * phase says so. `palette` needs { text, muted, pacman, ready, gameOver,
+ * theme }. `opts` (optional) is { blinkOn, muted, audio }: 1UP blinks, drawn
+ * only while blinkOn, otherwise it is steady; MUTE sits top-right (row 1)
+ * while muted, or NO AUDIO when audio is false (no device), in the muted
+ * colour.
  */
 function drawHud(ctx, state, palette, family, opts) {
     var showOneUp = !opts || opts.blinkOn;
@@ -69,7 +79,6 @@ function drawHud(ctx, state, palette, family, opts) {
     ctx.textAlign = "right";
     ctx.fillText(String(state.score), SCORE_RIGHT, FONT_PX);
     ctx.fillText(String(state.highScore), HIGH_SCORE_RIGHT, FONT_PX);
-    ctx.fillText("LEVEL " + state.level, LEVEL_RIGHT, LEVEL_Y);
 
     if (status !== "") {
         ctx.fillStyle = palette.muted;
@@ -80,6 +89,16 @@ function drawHud(ctx, state, palette, family, opts) {
     ctx.fillStyle = palette.pacman;
     for (var i = 0; i < state.lives - 1; i++) {
         Sprites.drawWedge(ctx, LIFE_X + i * LIFE_STEP, LIFE_Y, LIFE_RADIUS, Math.PI, LIFE_MOUTH);
+    }
+
+    // Slot i counted from the right: i = 0 is the newest (row's last entry,
+    // the level's own fruit), at x 208; each older one steps 16 px left.
+    var row = Fruit.fruitRow(state.level);
+    for (var i = 0; i < row.length; i++) {
+        var bitmap = FruitSprites.FRUIT_SPRITES[row[row.length - 1 - i]];
+        var size = Sprites.bitmapSize(bitmap);
+        var cx = FRUIT_RIGHT - FRUIT_STEP / 2 - i * FRUIT_STEP;
+        Sprites.drawBitmap(ctx, bitmap, Math.round(cx - size.width / 2), Math.round(FRUIT_Y - size.height / 2), palette.theme);
     }
 
     var messageY = Scale.BOARD_ORIGIN.y + MESSAGE_ROW * FONT_PX;
@@ -112,8 +131,27 @@ function drawEatenScore(ctx, state, palette, family) {
 }
 
 /**
- * One line on HUD row 2: `fps tx,ty want:dir mode phase fright`.
- * `info` is { fps, tile, wantDir, mode, phase, fright }.
+ * The fruit's points, centred where it was, for as long as the popup shows
+ * (`state.fruitScore` is set meanwhile). `palette` needs { fruitScore }.
+ */
+function drawFruitScore(ctx, state, palette, family) {
+    var popup = state.fruitScore;
+    if (!popup) return;
+    var spot = Fruit.fruitSpot(state.maze);
+    ctx.save();
+    ctx.font = fontString(family);
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "center";
+    ctx.fillStyle = palette.fruitScore;
+    ctx.fillText(String(popup.score), Scale.BOARD_ORIGIN.x + spot.x, Scale.BOARD_ORIGIN.y + spot.y);
+    ctx.restore();
+}
+
+/**
+ * One line on HUD row 2: `fps tx,ty want:dir mode phase Ln fright`. `info`
+ * is { fps, tile, wantDir, mode, phase, level, fright }; the level rides
+ * along here now that the HUD's bottom-right shows the fruit row instead of
+ * LEVEL n.
  */
 function drawDebug(ctx, info, palette, family) {
     ctx.save();
@@ -123,6 +161,6 @@ function drawDebug(ctx, info, palette, family) {
     ctx.fillStyle = palette.muted;
     var want = info.wantDir ? info.wantDir : "-";
     ctx.fillText(info.fps + " " + info.tile.x + "," + info.tile.y + " " + want + " " + info.mode.charAt(0)
-        + " " + info.phase + " " + info.fright, DEBUG_X, DEBUG_Y);
+        + " " + info.phase + " L" + info.level + " " + info.fright, DEBUG_X, DEBUG_Y);
     ctx.restore();
 }

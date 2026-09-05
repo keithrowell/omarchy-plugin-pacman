@@ -28,7 +28,7 @@ const SECONDS = {
   start: 4.0, "waka-a": 0.07, "waka-b": 0.07,
   "siren-1": 0.5, "siren-2": 0.5, "siren-3": 0.5, "siren-4": 0.5, "siren-5": 0.42,
   fright: 0.3, eyes: 0.25,
-  "ghost-eaten": 0.45, death: 1.6, "extra-life": 0.6, "level-clear": 1.2,
+  "ghost-eaten": 0.45, death: 1.6, "extra-life": 0.6, "level-clear": 1.2, fruit: 0.3,
 };
 
 const hasNumpy = spawnSync("python3", ["-c", "import numpy"], { encoding: "utf8" }).status === 0;

@@ -42,6 +42,7 @@ QtObject {
         "death": fxDeath,
         "extra-life": fxExtraLife,
         "level-clear": fxLevelClear,
+        "fruit": fxFruit,
     })
     readonly property var names: Object.keys(effects)
     readonly property int count: names.length
@@ -131,4 +132,5 @@ QtObject {
     property SoundEffect fxDeath: SoundEffect { source: Qt.resolvedUrl("assets/sfx/death.wav"); onStatusChanged: root.checkStatus() }
     property SoundEffect fxExtraLife: SoundEffect { source: Qt.resolvedUrl("assets/sfx/extra-life.wav"); onStatusChanged: root.checkStatus() }
     property SoundEffect fxLevelClear: SoundEffect { source: Qt.resolvedUrl("assets/sfx/level-clear.wav"); onStatusChanged: root.checkStatus() }
+    property SoundEffect fxFruit: SoundEffect { source: Qt.resolvedUrl("assets/sfx/fruit.wav"); onStatusChanged: root.checkStatus() }
 }

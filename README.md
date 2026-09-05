@@ -115,14 +115,24 @@ letterboxed, which gives the original hard-edged big-pixel look at any
 window size, with scanlines. There is one look — no toggle. See ADR-0002 in
 `docs/adr/`.
 
+## Fruit
+
+The level's fruit appears below the ghost house after the 70th and again the
+170th pellet of the level, and stays nine seconds or until eaten: cherry 100
+points (level 1), strawberry 300 (2), orange 500 (3-4), apple 700 (5-6),
+melon 1000 (7-8), galaxian 2000 (9-10), bell 3000 (11-12), key 5000 (13+).
+Eating it plays a short chime and shows its points for two seconds where it
+was. The bottom-right HUD shows the last seven levels' fruit, newest on the
+right, replacing the level number the way the original cabinet does.
+
 ## Sound
 
 The sounds are original chiptune pieces in the arcade idiom, not samples of
 the original: an opening jingle, the alternating waka, a siren that climbs
 through five stages as the pellets run out, a fright loop while the ghosts
-are blue, the eyes hurrying home, a ghost eaten, the death, the extra life
-and the level clear. `tools/gen_sounds.py` synthesises them from square and
-triangle waves with numpy and writes 22 kHz mono WAVs under `assets/sfx/`;
+are blue, the eyes hurrying home, a ghost eaten, the death, the extra life,
+the level clear and the fruit. `tools/gen_sounds.py` synthesises them from
+square and triangle waves with numpy and writes 22 kHz mono WAVs under `assets/sfx/`;
 the files are committed and a test regenerates them to make sure they match
 the script. Playback is QtMultimedia's `SoundEffect`; without an audio device
 the game runs silent and shows NO AUDIO top-right. `m` mutes and the choice

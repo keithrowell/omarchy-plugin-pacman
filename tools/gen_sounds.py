@@ -221,6 +221,14 @@ def level_clear():
     return np.concatenate(parts)
 
 
+def fruit():
+    """A ta-da-ding: three square notes rising E5, B5, E6."""
+    a = note(midi(76), 0.08, square, env=adsr(samples(0.08), release=0.01), duty=0.5)
+    b = note(midi(83), 0.08, square, env=adsr(samples(0.08), release=0.01), duty=0.5)
+    c = note(midi(88), 0.14, square, env=adsr(samples(0.14), decay=0.06, sustain=0.5, release=0.04), duty=0.5)
+    return np.concatenate([a, b, c])
+
+
 PIECES = {
     "start": start,
     "waka-a": lambda: waka(420.0, 260.0),
@@ -236,6 +244,7 @@ PIECES = {
     "death": death,
     "extra-life": extra_life,
     "level-clear": level_clear,
+    "fruit": fruit,
 }
 
 

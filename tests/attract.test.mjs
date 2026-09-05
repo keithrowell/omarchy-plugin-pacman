@@ -59,6 +59,19 @@ test("the committed script is exactly what the generator produces today", () => 
   assert.deepEqual(generateAttract(), ATTRACT, REGEN);
 });
 
+test("the demo spawns fruit from the pellet count, so a fruit shows on screen unattended", () => {
+  const maze = parseMaze(LEVEL_1);
+  let s = createState(maze, { seed: ATTRACT.seed });
+  const events = [];
+  while (s.tick < ATTRACT.expectedTick) {
+    const r = step(s, { wantDir: attractInput(ATTRACT, s.tick) }, TICK);
+    s = r.state;
+    events.push(...r.events);
+  }
+  assert.ok(events.some(e => e.type === "fruit"),
+    "the demo is the unattended way to see a fruit; update the manual-verification recipe in specs/…/plan.md if this ever changes");
+});
+
 test("attractInput walks the runs per tick; past the end it is null and attractEnded is true", () => {
   const script = { checksum: 1, seed: 1, length: 6, runs: [["left", 2], [null, 1], ["up", 3]] };
   assert.deepEqual([0, 1, 2, 3, 4, 5, 6, 7].map(t => attractInput(script, t)), ["left", "left", null, "up", "up", "up", null, null]);
