@@ -100,7 +100,6 @@ ShellRoot {
         property int frames: 0
         property int fps: 0
 
-        readonly property bool onTitle: flow.screen === "title"
         readonly property bool paused: flow.screen === "paused"
         // Screens that own the whole stage, drawn over their own background
         // with no board or HUD.

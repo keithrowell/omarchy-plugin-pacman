@@ -139,17 +139,20 @@ work and is untouched (size 24, same mtime throughout).
 - Qualifying game, entry and save (tests 2 and 4): reached naturally by
   idling after two pellet-eating taps. The log showed
   `Debug: qualifies for rank 1`, `Debug: flow dying -> gameover`, `Debug: flow
-  gameover -> initials`, letter cycling and slot advances on real key input,
-  then exactly one `Settings: high score FEB 40 level 1 saved to
-  .../highscore.json` and one `Main: saved FEB 40 (rank 1) to the high-score
-  table` line on a `q` press (save-then-quit path). Relaunching showed the
-  `FEB / 40 / 1` row as rank 1 on the HIGH SCORES title page and `HIGH SCORE
-  40` implied by the table's top row. `frame-initials.png` (in this
-  directory) is the F12 grab of that screen: title, `SCORE 40`, `RANK 1ST`,
-  `LEVEL 1`, three slots with the active one lit in the title colour, and the
-  key hints. `frame-table.png` is the HIGH SCORES page for the same table:
-  rank/name/score/level columns, the `FEB` row in text colour, rows 2–10 as
-  `---`/`---`/`-` in muted, clear of PRESS ENTER.
+  gameover -> initials`, then exactly one `Settings: high score ... saved to
+  .../highscore.json` and one `Main: saved ... to the high-score table` line
+  on a `q` press (save-then-quit path), never two. Relaunching showed the
+  saved row as rank 1 on the HIGH SCORES title page. `frame-initials.png`
+  (in this directory) is a clean F12 grab of that screen taken with no other
+  keys pressed yet: `ENTER YOUR INITIALS`, `SCORE 40`, `RANK 1ST`, `LEVEL 1`,
+  `AAA` with the first slot lit in the title colour, the underline bars, and
+  the key hints — nothing clipped or overlapping. `frame-table.png` is the
+  HIGH SCORES page for the resulting table: `PACMAN`, `HIGH SCORES`, the
+  `NO NAME SCORE LEVEL` header, the `AAA / 40 / 1` row in text colour, rows
+  2–10 as `---`/`---`/`-` in muted, `PRESS ENTER` and the hint rows below
+  with clear gaps throughout (see "Review fix" below — these replace the
+  first pair of grabs, which had a clipped heading and an overprinted
+  header).
 - Attract never writes (test 5): empty table, no keys until the demo ran its
   full script (`title -> ready (demo) -> ... -> title` at tick 2400, score
   1860 — the documented case that would qualify on an empty table). No
@@ -184,3 +187,26 @@ work and is untouched (size 24, same mtime throughout).
   four independent live confirmations that a mid-game `q` never saves).
   Reruns with a longer idle pause before the scripted keys eventually
   produced clean, uncontested runs for tests 1, 2, 4 and 5.
+
+**Review fix.** The fresh-context review caught two layout defects visible
+in the first pair of frame grabs, both in `app/render/Screens.js`:
+1. `drawInitials` drew "ENTER YOUR INITIALS" (19 glyphs) at `TITLE_PX`
+   (16 px = 304 px), clipping on a 224 px stage — `frame-initials.png` showed
+   "TER YOUR INITIA". Fixed by drawing that heading at `FONT_PX` (8 px =
+   152 px), as the plan specified; the score/rank/level lines and the letter
+   slots (still `TITLE_PX`, per the plan) were untouched.
+2. `drawScoreTable` drew "HIGH SCORES" at `TITLE_PX`, so it spanned y 56–72
+   and the `NO NAME SCORE LEVEL` header at `TABLE_HEAD_Y` (68) printed over
+   its last 4 px, with `PACMAN` above (ending at y 56) touching it with no
+   gap. Fixed by drawing "HIGH SCORES" at `FONT_PX` and moving
+   `TABLE_TITLE_Y`/`TABLE_HEAD_Y`/`TABLE_Y` from 56/68/80 to 60/72/84 (a 4 px
+   gap after `PACMAN`, after the heading, and after the header row); the ten
+   rows still end well clear of `PRESS_Y` (200 vs 232).
+
+Both frame grabs were retaken (scratch `HOME`, dark palette, accent
+`#7daea3`) and read back to confirm the full heading text is visible and
+nothing overlaps; see the updated bullets above. Also fixed on this pass:
+`app/Main.qml`'s unused `onTitle` property was removed (its last caller in
+`quit()` was dropped in an earlier commit), and the README's key table gives
+the initials-screen keys their own row instead of folding them into
+"Enter or Space" / `q` / Escape.

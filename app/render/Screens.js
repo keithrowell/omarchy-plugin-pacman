@@ -42,9 +42,11 @@ var PACMAN_MOUTH = 35 * Math.PI / 180;
 var PACMAN_RADIUS = 6.5;
 
 // The HIGH SCORES title page: ten ranked rows, empty ones shown as "---" / "-".
-var TABLE_TITLE_Y = 56;
-var TABLE_HEAD_Y = 68;
-var TABLE_Y = 80;
+// The heading is drawn at FONT_PX (not TITLE_PX) so it clears PACMAN above
+// (which ends at y 56) and the column header below.
+var TABLE_TITLE_Y = 60;
+var TABLE_HEAD_Y = 72;
+var TABLE_Y = 84;
 var TABLE_STEP = 12;
 var RANK_RIGHT = 40;
 var TABLE_NAME_X = 56;
@@ -105,12 +107,11 @@ function drawRollCall(ctx, highScore, palette, family) {
  * `palette` needs { title, text, muted }.
  */
 function drawScoreTable(ctx, table, palette, family) {
-    ctx.font = fontString(family, TITLE_PX);
+    ctx.font = fontString(family);
     ctx.textAlign = "center";
     ctx.fillStyle = palette.title;
     ctx.fillText("HIGH SCORES", CENTRE_X, TABLE_TITLE_Y);
 
-    ctx.font = fontString(family);
     ctx.fillStyle = palette.muted;
     ctx.textAlign = "right";
     ctx.fillText("NO", RANK_RIGHT, TABLE_HEAD_Y);
@@ -193,11 +194,10 @@ function drawInitials(ctx, info, palette, family) {
     ctx.textBaseline = "top";
     ctx.textAlign = "center";
 
-    ctx.font = fontString(family, TITLE_PX);
+    ctx.font = fontString(family);
     ctx.fillStyle = palette.title;
     ctx.fillText("ENTER YOUR INITIALS", CENTRE_X, ENTRY_TITLE_Y);
 
-    ctx.font = fontString(family);
     ctx.fillStyle = palette.text;
     ctx.fillText("SCORE " + info.score, CENTRE_X, ENTRY_SCORE_Y);
     ctx.fillText("RANK " + ordinal(info.rank), CENTRE_X, ENTRY_RANK_Y);
