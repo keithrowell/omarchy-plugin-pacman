@@ -142,14 +142,14 @@ test("eyes plays with no frightened ghost left, and a ghost still in the house d
 
 test("the loop is null on every screen but playing", () => {
   const frightened = withGhost(playing(), "blinky", { state: "frightened" });
-  for (const screen of ["title", "ready", "paused", "dying", "level-clear", "gameover"]) {
+  for (const screen of ["title", "ready", "paused", "dying", "level-clear", "gameover", "initials"]) {
     assert.equal(map([], frightened, screen).loop, null, screen);
   }
 });
 
-test("title, paused and gameover discard one-shots; ready, dying and level-clear keep theirs", () => {
+test("title, paused, gameover and initials discard one-shots; ready, dying and level-clear keep theirs", () => {
   const events = [pellet, { type: "death" }];
-  for (const screen of ["title", "paused", "gameover"]) {
+  for (const screen of ["title", "paused", "gameover", "initials"]) {
     const r = map(events, playing({ tick: 50 }), screen);
     assert.deepEqual(r.oneShots, [], screen);
     assert.deepEqual(r.soundState, createSoundState(), screen + " leaves the sound state alone");
