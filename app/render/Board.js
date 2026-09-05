@@ -187,7 +187,7 @@ function drawPellets(ctx, board, palette, timeMs) {
 /**
  * The static part of the board: background, walls and house. Costly to
  * rasterise (thousands of stroked elements), so Main.qml keeps it on its own
- * canvas and repaints it only when the palette, size, mode or `flash`
+ * canvas and repaints it only when the palette, size or `flash`
  * changes. `palette` is a plain object { wall, door, background, flash } of
  * colour strings; with `flash` set the walls are stroked in `palette.flash`
  * (the level-clear blink).
