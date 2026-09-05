@@ -2,7 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import "lib/theme.mjs" as ThemeLib
+import "../lib/theme.mjs" as ThemeLib
 
 // The live Omarchy palette. Reads colors.toml, re-parses it whenever it changes,
 // and exposes every key as a colour property. No colour literal lives here:
@@ -56,11 +56,10 @@ QtObject {
         console.info("Theme: loaded " + palette.mode + " palette (accent " + palette.accent + ", font " + fontFamily + ") from " + colorsPath);
     }
 
-    // Quickshell refuses to load files outside the shell root (app/), so app/lib
-    // and app/assets are symlinks to ../lib and ../assets; lib/ stays the single
-    // source both Node and QML use.
+    // The shell root is the repo root (root shell.qml, ADR-0001 amendment),
+    // so assets/ is a real sibling directory one level up from app/.
     property FontLoader pixelFont: FontLoader {
-        source: Qt.resolvedUrl("assets/fonts/PressStart2P-Regular.ttf")
+        source: Qt.resolvedUrl("../assets/fonts/PressStart2P-Regular.ttf")
     }
 
     // omarchy-theme-set replaces current/theme with `rm -rf` + `mv`. If a reload

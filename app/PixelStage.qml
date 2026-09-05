@@ -1,5 +1,5 @@
 import QtQuick
-import "lib/scale.mjs" as Scale
+import "../lib/scale.mjs" as Scale
 
 // The stage from ADR-0002. Holds one child scene drawn in native units
 // (224x248 by default) and shows it either as big hard-edged pixels (arcade)

@@ -44,3 +44,18 @@ Theme colours are parsed from `~/.local/state/omarchy/current/theme/colors.toml`
   Hyprland app id is Quickshell's, so per-app window rules key on the title.
 - Committed to: QML/JS only for the app, Python only for the offline sound
   generator, WAV assets committed to the repo.
+
+## Amendment (2026-09-06, spec 0001-publish-standalone)
+
+The launcher runs `qs -p <repo root>` against a root `shell.qml` that
+instantiates `app/Main.qml`, rather than `qs -p app/Main.qml` directly. This
+makes the repo root the Quickshell config root, so `app/` can reach `lib/`
+and `assets/` as real sibling directories instead of the `app/lib` and
+`app/assets` symlinks the original plugin-directory layout needed — a public,
+symlink-free clone was otherwise blocked by `core.symlinks=false` hosts and
+by the Omarchy plugin validator's rejection of symlinks. The standalone
+decision above is unchanged: the Omarchy plugin marketplace only lists
+shell-hosted kinds (bar, bar-widget, menu, overlay, panel, service), none of
+which fit a windowed game loop, so `omarchy plugin add` and shell-kind
+packaging remain not applicable; 1.0.0 is published as a plain public git
+repo installed by clone + `bin/install`.

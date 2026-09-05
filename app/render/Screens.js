@@ -1,7 +1,7 @@
 .pragma library
 .import "Sprites.js" as Sprites
-.import "../lib/scale.mjs" as Scale
-.import "../lib/highscores.mjs" as HighScores
+.import "../../lib/scale.mjs" as Scale
+.import "../../lib/highscores.mjs" as HighScores
 
 // The screens around the game, in native units (224x288 stage): the title
 // with its roll-call and its HIGH SCORES page, the initials entry screen,

@@ -1,8 +1,8 @@
 .pragma library
 .import "Sprites.js" as Sprites
-.import "../lib/scale.mjs" as Scale
-.import "../lib/fruit.mjs" as Fruit
-.import "../lib/fruit-sprites.mjs" as FruitSprites
+.import "../../lib/scale.mjs" as Scale
+.import "../../lib/fruit.mjs" as Fruit
+.import "../../lib/fruit-sprites.mjs" as FruitSprites
 
 // The HUD rows above and below the maze, in native units (224x288 stage),
 // plus the texts that sit on the board between lives (READY!, GAME OVER, a

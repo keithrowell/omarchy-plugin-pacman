@@ -10,4 +10,7 @@ fi
 
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 
-exec qs -p "$ROOT/app/Main.qml" "$@"
+# The repo root is the Quickshell config root (root shell.qml, ADR-0001
+# amendment): it instantiates app/Main.qml, and app/ can then reach lib/ and
+# assets/ as real sibling directories with no symlinks.
+exec qs -p "$ROOT" "$@"
