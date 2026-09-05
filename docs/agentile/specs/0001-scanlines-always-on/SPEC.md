@@ -25,20 +25,20 @@ arcade mode has one look.
 
 ## Acceptance criteria
 
-- [ ] Arcade mode always draws the scanline overlay exactly as today (1 px
+- [x] Arcade mode always draws the scanline overlay exactly as today (1 px
       per native row, `Theme.darker_background` at 15 % alpha). Smooth mode
       still draws none.
-- [ ] `s` is plain WASD down on every screen; no screen treats it as a toggle.
+- [x] `s` is plain WASD down on every screen; no screen treats it as a toggle.
       `Settings.toggleScanlines` and `Settings.scanlines` are gone.
-- [ ] `lib/settings.mjs`: defaults are `{ mode, muted }`; `parseSettings`
+- [x] `lib/settings.mjs`: defaults are `{ mode, muted }`; `parseSettings`
       ignores a stored `scanlines` key; `serialiseSettings` never writes one.
       Tests updated.
-- [ ] `app/PixelStage.qml` keeps its `scanlines` property (for the planned
+- [x] `app/PixelStage.qml` keeps its `scanlines` property (for the planned
       reusable component) with the default flipped to `true`; `Main.qml` no
       longer binds it.
-- [ ] Title hint reads `G SMOOTH`; the README keys table drops the `s` row and
+- [x] Title hint reads `G SMOOTH`; the README keys table drops the `s` row and
       the state-file note no longer mentions scanlines.
-- [ ] Debug frame line no longer prints the scanlines flag.
+- [x] Debug frame line no longer prints the scanlines flag.
 
 ## Scope boundary
 
@@ -72,3 +72,28 @@ None.
   the title does nothing visible and `s` in play moves down; `g` still swaps
   to smooth with no scanlines; `cat ~/.local/state/pacman/settings.json` after
   a mute toggle shows only `mode` and `muted`.
+
+## As built
+
+Built as planned: pure deletion, no new behaviour. `lib/settings.mjs` and its
+tests changed first (TDD), then `app/Settings.qml`, `app/PixelStage.qml`
+(default flipped to `true`), `app/Main.qml` (three `Qt.Key_S` branches gone,
+the `PixelStage` binding removed, the debug frame log no longer prints the
+flag), `app/render/Screens.js`'s title hint, the README keys table and Modes
+paragraph, and a one-line ADR-0002 amendment.
+
+Spec 0005's acceptance text (shipped, `specs/done/0005-*`) described the
+scanlines toggle as delivered behaviour; that text is now superseded by this
+spec and was left unedited, per the shipped-spec convention.
+
+`node --test tests/*.test.mjs` is green (243 tests). `grep -rn -i scanline app
+lib tests README.md docs/adr` shows: `app/PixelStage.qml` (the component's
+own property, comments and overlay drawing — unchanged, default now `true`),
+`app/Main.qml:429` (`scanlineColor`, the colour prop the component still
+takes), the README Modes sentence, the ADR-0002 amendment lines, and — beyond
+what the plan's interim check anticipated — `lib/settings.mjs`'s doc comment
+and `tests/settings.test.mjs`'s test names/bodies, which deliberately
+document and prove that a stored `scanlines` key is ignored on read and
+dropped on write (the plan's step 1 explicitly asked for that test). No
+runtime code outside `PixelStage.qml` reads or writes a `scanlines` key or
+property.

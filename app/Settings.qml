@@ -13,7 +13,6 @@ QtObject {
     id: root
 
     property string mode: SettingsLib.SETTINGS_DEFAULTS.mode
-    property bool scanlines: SettingsLib.SETTINGS_DEFAULTS.scanlines
     property bool muted: SettingsLib.SETTINGS_DEFAULTS.muted
     property int highScore: 0
 
@@ -24,12 +23,11 @@ QtObject {
     function load(text) {
         const next = SettingsLib.parseSettings(text);
         mode = next.mode;
-        scanlines = next.scanlines;
         muted = next.muted;
     }
 
     function save() {
-        settingsFile.setText(SettingsLib.serialiseSettings({ mode: mode, scanlines: scanlines, muted: muted }));
+        settingsFile.setText(SettingsLib.serialiseSettings({ mode: mode, muted: muted }));
     }
 
     function setMode(value) {
@@ -39,11 +37,6 @@ QtObject {
 
     function toggleMode() {
         setMode(mode === "arcade" ? "smooth" : "arcade");
-    }
-
-    function toggleScanlines() {
-        scanlines = !scanlines;
-        save();
     }
 
     function toggleMuted() {
