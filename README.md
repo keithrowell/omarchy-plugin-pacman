@@ -11,17 +11,29 @@ belongs to the desktop, and recolours itself when the theme changes.
 
 | Key | What it does |
 |---|---|
-| Arrows, `hjkl`, `WASD` | Move |
-| Enter or Space | Start from the title; resume when paused |
+| Arrows, `hjkl`, `WASD` | Move; on the initials screen, up/down cycles a slot's letter |
+| Enter or Space | Start from the title; resume when paused; on the initials screen, Enter confirms a slot (the third confirm saves) |
 | `p` or Escape | Pause and resume |
-| Escape | On the title: quit |
-| `q` | In a game: quit at once. On the title: hold for a second to quit |
+| Escape | On the title: quit. On the initials screen: same as `q` |
+| `q` | In a game: quit at once (no score is recorded). On the title: hold for a second to quit. On the initials screen: save the current letters, then quit |
 | `g` | Toggle arcade (big pixels) and smooth (full resolution) graphics |
 | `m` | Mute and unmute (remembered; MUTE shows in the top-right corner while muted) |
 | F12 | Save a frame to `~/.local/state/pacman/frame.png` (only with `PACMAN_DEBUG=1`) |
 
-Any game key ends the attract demo (`g`, `m` and F12 do not). The high score, the graphics settings and
-mute live in `~/.local/state/pacman/`.
+Any game key ends the attract demo (`g`, `m` and F12 do not). The graphics settings and mute live in
+`~/.local/state/pacman/settings.json`; the high-score table is `~/.local/state/pacman/highscore.json`
+(a pre-table file with a single score is migrated to the table shape on load).
+
+## High scores
+
+A game over with a qualifying score (top ten, ties keep the older entry ahead of the newer one) goes to
+an initials-entry screen instead of straight back to the title: three letters, cycled with up/down and
+confirmed one at a time with Enter/right; 30 s of no input saves whatever is showing. The row is written
+once, either on the third confirm or on `q`/Escape. **Only a finished game earns a row** — quitting a game
+in progress with `q` no longer records a score (a `---` row for every abandoned game would clutter the
+table); the attract demo never writes to the table either. The title screen alternates every 5 s between
+the roll-call and a HIGH SCORES page listing all ten rows (empty ones shown as `---`); the HUD's
+`HIGH SCORE` is always the table's top row.
 
 ## Install
 
