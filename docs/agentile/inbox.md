@@ -40,3 +40,4 @@ Drop stubs with `/ag-capture <idea>`. Shape them into specs with `/ag-shape`. A 
 - [ ] Loop seam: end loops one sample short of the wrap phase instead of duplicating the zero sample — (captured 2026-09-04)
 - [ ] Main.qml drops a tap that lands on a zero-tick frame (pendingPress cleared before the tick loop) — (captured 2026-09-04)
 - [ ] A deterministic debug script that eats a ghost, so ghost-eaten/eyes sounds can be verified unattended — (captured 2026-09-04)
+- [ ] Title shows high 0 (debug line, 6 s after launch) while highscore.json holds a migrated 3350 row; check the HUD/state pick up Settings.highScore after the async load — (captured 2026-09-06)
