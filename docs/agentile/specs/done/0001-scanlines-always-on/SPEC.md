@@ -1,7 +1,7 @@
 ---
 title: Scanlines always on — remove the toggle
 slug: scanlines-always-on
-status: in_progress
+status: shipped
 depends_on: []
 type: feature
 route: background
@@ -12,6 +12,7 @@ outcome: arcade mode always draws scanlines, the s key is only WASD down, and se
 claimed_by: 206e3dac-9cc9-4058-870a-7309ecbd27b6
 label: 
 claimed_at: 2026-09-05T11:29:33Z
+shipped_at: 2026-09-05T11:41:35Z
 ---
 
 # Scanlines always on — remove the toggle
