@@ -31,9 +31,14 @@ done
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 LAUNCH="$ROOT/bin/pacman"
 ICON="$ROOT/assets/icon.png"
-# The canonical install location, used for the menu action whatever
-# directory this runs from (the menu file is shared across machines).
-PLUGIN_DIR='~/.config/omarchy/plugins/com.keithrowell.pacman'
+# The path this checkout's own menu action and requirements hint use,
+# whatever directory this runs from. ~/.config/omarchy/plugins/com.keithrowell.pacman
+# is only the suggested clone location (see README), not special-cased here:
+# a checkout there naturally collapses to that same display form below.
+DISPLAY_LAUNCH="$LAUNCH"
+case "$LAUNCH" in
+  "$HOME"/*) DISPLAY_LAUNCH="~${LAUNCH#"$HOME"}" ;;
+esac
 
 DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 APP_DIR="$DATA_HOME/applications"
@@ -66,6 +71,18 @@ fi
 
 say() { printf '%s\n' "$*"; }
 would() { if (( DRY_RUN )); then say "$1: would $2"; return 0; else return 1; fi; }
+
+# Requirements: quickshell (the qs binary) and qt6-multimedia (SoundEffect's
+# backend). A stale or missing package should not block writing the desktop
+# file, so this only prints an install hint; it never fails the run.
+missing_pkgs=()
+command -v qs >/dev/null 2>&1 || missing_pkgs+=(quickshell)
+if command -v pacman >/dev/null 2>&1; then
+  pacman -Qq qt6-multimedia >/dev/null 2>&1 || missing_pkgs+=(qt6-multimedia)
+fi
+if (( ${#missing_pkgs[@]} )); then
+  say "requirements: missing ${missing_pkgs[*]} — install with: sudo pacman -S ${missing_pkgs[*]}"
+fi
 
 # Uninstall removes only what this checkout owns: a desktop file whose Exec
 # points into ROOT and a launcher symlink that points at ROOT's bin/pacman.
@@ -151,12 +168,14 @@ else
   say "launcher: skipped ($BIN_DIR does not exist; create it to get an omarchy-pacman command)"
 fi
 
-# Menu entry: printed, never applied. The menu file lives in the dotfiles repo.
+# Menu entry: printed, never applied. The action runs this checkout's own
+# bin/pacman by its real path (quoted: a development checkout's path may
+# contain spaces), whatever directory this install ran from.
 if command -v uwsm-app >/dev/null 2>&1; then
-  action="uwsm-app -- $PLUGIN_DIR/bin/pacman"
+  action="uwsm-app -- \\\"$DISPLAY_LAUNCH\\\""
   uwsm_note=""
 else
-  action="$PLUGIN_DIR/bin/pacman"
+  action="\\\"$DISPLAY_LAUNCH\\\""
   uwsm_note=" (uwsm-app is not on PATH, so the action launches the game directly)"
 fi
 

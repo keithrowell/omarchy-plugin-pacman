@@ -49,13 +49,31 @@ function snippet(out) {
   return JSON.parse("{" + lines.slice(start, end + 1).join("\n") + "}").pacman;
 }
 
-// A PATH with every tool the installer needs except uwsm-app.
+// A PATH with every tool the installer needs except uwsm-app. Also lacks
+// `qs` and `pacman`, so the requirements check reports quickshell missing
+// (and skips the qt6-multimedia check, which needs `pacman -Qq`).
 function pathWithoutUwsm(home) {
   const dir = join(home, "path");
   mkdirSync(dir);
   for (const tool of ["bash", "env", "readlink", "dirname", "mktemp", "cmp", "cp", "chmod", "mkdir", "ln", "rm", "cat", "printf"]) {
     if (existsSync(join("/usr/bin", tool))) symlinkSync(join("/usr/bin", tool), join(dir, tool));
   }
+  return dir;
+}
+
+// pathWithoutUwsm plus a stub `qs` (existence only, never run) and a stub
+// `pacman -Qq <pkg>` that reports `installed` as present and everything
+// else missing, so the requirements check is deterministic regardless of
+// what is actually on this machine.
+function pathWithStubs(home, { qs = false, installed = [] } = {}) {
+  const dir = pathWithoutUwsm(home);
+  if (qs) writeFileSync(join(dir, "qs"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+  const cases = installed.map(pkg => `    ${pkg}) exit 0 ;;`).join("\n");
+  writeFileSync(
+    join(dir, "pacman"),
+    `#!/bin/sh\nif [ "$1" = "-Qq" ]; then\n  case "$2" in\n${cases}\n    *) exit 1 ;;\n  esac\nfi\nexit 1\n`,
+    { mode: 0o755 },
+  );
   return dir;
 }
 
@@ -127,7 +145,7 @@ test("without ~/.local/bin the launcher is skipped and the desktop file still la
   }
 });
 
-test("the printed menu snippet is JSON with the label, aliases and a uwsm-app action; it is not applied anywhere", () => {
+test("the printed menu snippet is JSON with the label, aliases and a uwsm-app action running this checkout's own bin/pacman; it is not applied anywhere", () => {
   const home = scratchHome();
   try {
     const result = run(home);
@@ -136,7 +154,11 @@ test("the printed menu snippet is JSON with the label, aliases and a uwsm-app ac
     assert.deepEqual(entry.aliases, ["pacman", "game", "arcade"]);
     assert.equal(typeof entry.icon, "string");
     assert.ok(entry.icon.length > 0);
-    assert.equal(entry.action, "uwsm-app -- ~/.config/omarchy/plugins/com.keithrowell.pacman/bin/pacman");
+    // The real checkout path (ROOT), not the fixed plugin-path suggestion:
+    // this test's checkout is not installed at ~/.config/omarchy/plugins/...,
+    // so the action must reflect where it actually lives, quoted for a
+    // path that may contain spaces (a development checkout's does).
+    assert.equal(entry.action, `uwsm-app -- "${LAUNCH}"`);
     assert.match(result.out, /not applied/);
     assert.ok(!existsSync(join(home, ".config")), "nothing written under ~/.config");
   } finally {
@@ -144,16 +166,32 @@ test("the printed menu snippet is JSON with the label, aliases and a uwsm-app ac
   }
 });
 
-test("without uwsm-app the menu action is the bare launcher path and says why", () => {
+test("without uwsm-app the menu action is the bare quoted launcher path and says why", () => {
   const home = scratchHome();
   try {
     const result = run(home, [], { PATH: pathWithoutUwsm(home) });
     assert.equal(result.code, 0, result.err);
     const entry = snippet(result.out);
-    assert.equal(entry.action, "~/.config/omarchy/plugins/com.keithrowell.pacman/bin/pacman");
+    assert.equal(entry.action, `"${LAUNCH}"`);
     assert.match(result.out, /uwsm-app is not on PATH/);
   } finally {
     rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("the menu action collapses a $HOME-rooted checkout to a ~-relative path", () => {
+  // A real (not scratch) $HOME set to this checkout's own parent directory,
+  // so LAUNCH is genuinely $HOME-rooted; --dry-run touches nothing there.
+  const home = dirname(ROOT);
+  const xdg = mkdtempSync(join(tmpdir(), "pacman-install-xdg-"));
+  try {
+    const result = run(home, ["--dry-run"], { XDG_DATA_HOME: xdg });
+    assert.equal(result.code, 0, result.err);
+    const entry = snippet(result.out);
+    const tail = LAUNCH.slice(home.length); // keeps the leading "/"
+    assert.equal(entry.action, `uwsm-app -- "~${tail}"`);
+  } finally {
+    rmSync(xdg, { recursive: true, force: true });
   }
 });
 
@@ -255,6 +293,43 @@ test("refuses to proceed when a pacman on PATH resolves into the checkout", () =
     assert.notEqual(result.code, 0);
     assert.match(result.err, /shadows the Arch package manager/);
     assert.ok(!existsSync(desktopPath(home)));
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("requirements: reports quickshell and qt6-multimedia missing, and does not fail the install", () => {
+  const home = scratchHome();
+  try {
+    const dir = pathWithStubs(home, { qs: false, installed: [] });
+    const result = run(home, [], { PATH: dir });
+    assert.equal(result.code, 0, result.err);
+    assert.match(result.out, /^requirements: missing quickshell qt6-multimedia — install with: sudo pacman -S quickshell qt6-multimedia$/m);
+    assert.match(result.out, /^desktop file: written /m);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("requirements: says nothing when quickshell and qt6-multimedia are both present", () => {
+  const home = scratchHome();
+  try {
+    const dir = pathWithStubs(home, { qs: true, installed: ["qt6-multimedia"] });
+    const result = run(home, [], { PATH: dir });
+    assert.equal(result.code, 0, result.err);
+    assert.doesNotMatch(result.out, /requirements: missing/);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("requirements: lists only the one missing package", () => {
+  const home = scratchHome();
+  try {
+    const dir = pathWithStubs(home, { qs: true, installed: [] });
+    const result = run(home, [], { PATH: dir });
+    assert.equal(result.code, 0, result.err);
+    assert.match(result.out, /^requirements: missing qt6-multimedia — install with: sudo pacman -S qt6-multimedia$/m);
   } finally {
     rmSync(home, { recursive: true, force: true });
   }
