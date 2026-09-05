@@ -46,6 +46,8 @@ into a reusable Quickshell component for other Omarchy apps.
 
 *Amended 2026-09-05 (spec 0001 scanlines-always-on):* scanlines are always drawn in arcade mode; the toggle and its setting were removed.
 
+*Amended 2026-09-05 (spec 0003 remove-smooth-mode):* smooth mode and the `g` toggle were removed from the game; `PixelStage` keeps its `mode` property and smooth fit so the component stays reusable.
+
 ## Consequences
 
 - Easier: one drawing path, sprites are small vector routines, theme recolouring

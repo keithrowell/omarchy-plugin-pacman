@@ -16,12 +16,11 @@ belongs to the desktop, and recolours itself when the theme changes.
 | `p` or Escape | Pause and resume |
 | Escape | On the title: quit |
 | `q` | In a game: quit at once (no score is recorded). On the title: hold for a second to quit |
-| `g` | Toggle arcade (big pixels) and smooth (full resolution) graphics |
 | `m` | Mute and unmute (remembered; MUTE shows in the top-right corner while muted) |
 | F12 | Save a frame to `~/.local/state/pacman/frame.png` (only with `PACMAN_DEBUG=1`) |
 | Initials screen | Up/down (arrows, `k`/`j`, `w`/`s`) cycles the active slot's letter; right or Enter confirms it (the third confirm saves the row); left steps back a slot; `q` or Escape saves the current letters, then quits |
 
-Any game key ends the attract demo (`g`, `m` and F12 do not). The graphics settings and mute live in
+Any game key ends the attract demo (`m` and F12 do not). Mute lives in
 `~/.local/state/pacman/settings.json`; the high-score table is `~/.local/state/pacman/highscore.json`
 (a pre-table file with a single score is migrated to the table shape on load).
 
@@ -107,15 +106,14 @@ theme was active when it was taken. The only literal colour in the repo is
 the yellow of the launcher icon, which the app launcher shows before the game
 runs.
 
-## Modes
+## Look
 
 The game is drawn once, as vectors, in native arcade units (224x288: the
-224x248 maze plus the HUD rows). In **arcade** mode that drawing is rendered
-to a 224x288 texture and scaled up by a whole number of device pixels with no
-filtering, letterboxed, which gives the original hard-edged big-pixel look at
-any window size, with scanlines. In **smooth** mode the same drawing
-is rendered at the window's full resolution with anti-aliasing. `g` switches
-between them and the choice is remembered. See ADR-0002 in `docs/adr/`.
+224x248 maze plus the HUD rows). That drawing is rendered to a 224x288
+texture and scaled up by a whole number of device pixels with no filtering,
+letterboxed, which gives the original hard-edged big-pixel look at any
+window size, with scanlines. There is one look — no toggle. See ADR-0002 in
+`docs/adr/`.
 
 ## Sound
 
