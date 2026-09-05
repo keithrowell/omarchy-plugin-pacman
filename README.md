@@ -17,7 +17,6 @@ belongs to the desktop, and recolours itself when the theme changes.
 | Escape | On the title: quit |
 | `q` | In a game: quit at once. On the title: hold for a second to quit |
 | `g` | Toggle arcade (big pixels) and smooth (full resolution) graphics |
-| `s` | Toggle scanlines (on the title, pause and game-over screens) |
 | `m` | Mute and unmute (remembered; MUTE shows in the top-right corner while muted) |
 | F12 | Save a frame to `~/.local/state/pacman/frame.png` (only with `PACMAN_DEBUG=1`) |
 
@@ -101,7 +100,7 @@ The game is drawn once, as vectors, in native arcade units (224x288: the
 224x248 maze plus the HUD rows). In **arcade** mode that drawing is rendered
 to a 224x288 texture and scaled up by a whole number of device pixels with no
 filtering, letterboxed, which gives the original hard-edged big-pixel look at
-any window size; scanlines are optional. In **smooth** mode the same drawing
+any window size, with scanlines. In **smooth** mode the same drawing
 is rendered at the window's full resolution with anti-aliasing. `g` switches
 between them and the choice is remembered. See ADR-0002 in `docs/adr/`.
 
