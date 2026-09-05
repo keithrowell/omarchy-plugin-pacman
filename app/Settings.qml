@@ -5,15 +5,14 @@ import Quickshell.Io
 import "lib/settings.mjs" as SettingsLib
 import "lib/highscores.mjs" as HighScoresLib
 
-// Persistent settings in ~/.local/state/pacman/settings.json and the
-// high-score table in highscore.json beside it (a pre-table file with a
+// Persistent settings in ~/.local/state/pacman/settings.json (mute only) and
+// the high-score table in highscore.json beside it (a pre-table file with a
 // single score is migrated on load). Missing or malformed file -> defaults;
 // the next change rewrites it. The parsing and serialising live in
 // lib/settings.mjs and lib/highscores.mjs so Node tests cover them.
 QtObject {
     id: root
 
-    property string mode: SettingsLib.SETTINGS_DEFAULTS.mode
     property bool muted: SettingsLib.SETTINGS_DEFAULTS.muted
     // The table, always replaced, never mutated.
     property var highScores: []
@@ -26,21 +25,11 @@ QtObject {
 
     function load(text) {
         const next = SettingsLib.parseSettings(text);
-        mode = next.mode;
         muted = next.muted;
     }
 
     function save() {
-        settingsFile.setText(SettingsLib.serialiseSettings({ mode: mode, muted: muted }));
-    }
-
-    function setMode(value) {
-        mode = SettingsLib.parseSettings(JSON.stringify({ mode: value })).mode;
-        save();
-    }
-
-    function toggleMode() {
-        setMode(mode === "arcade" ? "smooth" : "arcade");
+        settingsFile.setText(SettingsLib.serialiseSettings({ muted: muted }));
     }
 
     function toggleMuted() {

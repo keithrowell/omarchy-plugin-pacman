@@ -26,10 +26,10 @@ import "render/Screens.js" as Screens
 // (one-shots and the background loop) goes to the Sfx singleton.
 //
 // Keys: Enter/Space starts from the title; arrows / hjkl / WASD move; p or
-// Escape pauses and resumes; g toggles arcade/smooth; m toggles mute;
-// Escape on the title quits, q quits at once in a game and after a
-// one-second hold on the title; any key leaves the demo (g, m and F12 do
-// not); F12 grabs a frame when PACMAN_DEBUG=1. On the initials screen (after
+// Escape pauses and resumes; m toggles mute; Escape on the title quits, q
+// quits at once in a game and after a one-second hold on the title; any key
+// leaves the demo (m and F12 do not); F12 grabs a frame when
+// PACMAN_DEBUG=1. On the initials screen (after
 // a qualifying game over): up/down (arrows, k/j, w/s) cycle a slot's letter,
 // right/l/d/Enter confirms it (the third confirm saves), left/h/a steps
 // back; q or Escape saves the current letters and quits.
@@ -104,7 +104,7 @@ ShellRoot {
         // Screens that own the whole stage, drawn over their own background
         // with no board or HUD.
         readonly property bool boardless: flow.screen === "title" || flow.screen === "initials"
-        // 1UP blinks at 250 ms (arcade only); PRESS ENTER and DEMO at 500 ms.
+        // 1UP blinks at 250 ms; PRESS ENTER and DEMO at 500 ms.
         readonly property bool blinkOn: Math.floor(timeMs / 250) % 2 === 0
         readonly property bool slowBlinkOn: Math.floor(timeMs / 500) % 2 === 0
 
@@ -246,10 +246,6 @@ ShellRoot {
         function handleKey(key) {
             if (key === Qt.Key_F12 && debug) {
                 grabFrame();
-                return true;
-            }
-            if (key === Qt.Key_G) {
-                Settings.toggleMode();
                 return true;
             }
             if (key === Qt.Key_M) {
@@ -429,7 +425,7 @@ ShellRoot {
             stage.grabToImage(result => {
                 const ok = result.saveToFile(window.framePath);
                 console.info("Debug: frame " + (ok ? "saved to " : "NOT saved to ") + window.framePath
-                    + " (screen " + window.flow.screen + ", mode " + stage.mode + ", block " + stage.blockSize
+                    + " (screen " + window.flow.screen + ", block " + stage.blockSize
                     + " device px, dpr " + window.devicePixelRatio + ")");
             });
         }
@@ -469,12 +465,11 @@ ShellRoot {
             PixelStage {
                 id: stage
                 anchors.fill: parent
-                mode: Settings.mode
                 devicePixelRatio: window.devicePixelRatio
                 scanlineColor: Theme.darker_background
 
                 // Walls and house: thousands of stroked elements, so this
-                // canvas is rasterised only when the palette, size or mode
+                // canvas is rasterised only when the palette or size
                 // changes (Canvas repaints itself on resize). Hidden on the
                 // title, which has no board.
                 Canvas {
@@ -482,7 +477,7 @@ ShellRoot {
                     anchors.fill: parent
                     visible: !window.boardless
                     renderStrategy: Canvas.Cooperative
-                    antialiasing: !stage.arcade
+                    antialiasing: false
 
                     onPaint: {
                         const ctx = getContext("2d");
@@ -505,7 +500,7 @@ ShellRoot {
                     id: overlay
                     anchors.fill: parent
                     renderStrategy: Canvas.Cooperative
-                    antialiasing: !stage.arcade
+                    antialiasing: false
 
                     onPaint: {
                         const ctx = getContext("2d");
@@ -555,7 +550,7 @@ ShellRoot {
                         if (state.phase === "dying") Sprites.drawDeath(ctx, state.player, state.phaseTicks, palette);
                         else if (state.phase !== "game-over") Sprites.drawPacman(ctx, state.player, palette);
                         Hud.drawHud(ctx, state, palette, Theme.fontFamily, {
-                            arcade: stage.arcade, blinkOn: window.blinkOn, muted: Settings.muted, audio: Sfx.available,
+                            blinkOn: window.blinkOn, muted: Settings.muted, audio: Sfx.available,
                         });
                         Hud.drawEatenScore(ctx, state, palette, Theme.fontFamily);
                         if (flow.attract) Screens.drawAttractBanner(ctx, window.slowBlinkOn, palette, Theme.fontFamily);
@@ -567,8 +562,7 @@ ShellRoot {
             }
         }
 
-        // A theme change recolours both layers on the next frame; a mode
-        // change re-rasterises the backdrop with the new anti-aliasing.
+        // A theme change recolours both layers on the next frame.
         Connections {
             target: Theme
             function onPaletteChanged() { backdrop.requestPaint(); overlay.requestPaint(); }
@@ -601,7 +595,7 @@ ShellRoot {
             id: keyScript
             property int next: 0
             readonly property var names: ({
-                "g": Qt.Key_G, "m": Qt.Key_M, "q": Qt.Key_Q, "p": Qt.Key_P, "Escape": Qt.Key_Escape, "F12": Qt.Key_F12,
+                "m": Qt.Key_M, "q": Qt.Key_Q, "p": Qt.Key_P, "Escape": Qt.Key_Escape, "F12": Qt.Key_F12,
                 "Return": Qt.Key_Return, "Enter": Qt.Key_Return, "Space": Qt.Key_Space,
                 "Up": Qt.Key_Up, "Down": Qt.Key_Down, "Left": Qt.Key_Left, "Right": Qt.Key_Right,
                 "h": Qt.Key_H, "j": Qt.Key_J, "k": Qt.Key_K, "l": Qt.Key_L,
@@ -656,7 +650,7 @@ ShellRoot {
             onTriggered: {
                 window.fps = window.frames;
                 const tile = Player.tileOf(window.state.player, window.state.board);
-                console.info("Debug: fps " + window.frames + " mode " + stage.mode
+                console.info("Debug: fps " + window.frames
                     + " zoom " + stage.zoom + " block " + stage.blockSize
                     + " dpr " + stage.devicePixelRatio + " stage " + stage.width + "x" + stage.height
                     + " scene " + stage.sceneSize.width + "x" + stage.sceneSize.height
