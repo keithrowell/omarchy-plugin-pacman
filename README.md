@@ -95,6 +95,40 @@ command is `omarchy-pacman`. The installer refuses to run if a `pacman` on
 Updates: `git pull` inside the submodule, then `bin/install` again (it
 reports `unchanged` when nothing moved).
 
+### Trying the latest work before it is pushed
+
+The development checkout lives in the lab (`~/Dropbox (Maestral)/lab/omarchy_pacman`)
+and is usually ahead of GitHub while the Agentile loop is shipping specs.
+To play what has just landed on `master` without pushing first, fast-forward
+the installed submodule straight from the lab checkout:
+
+```bash
+P=~/.config/omarchy/plugins/com.keithrowell.pacman
+git -C "$P" pull --ff-only "$HOME/Dropbox (Maestral)/lab/omarchy_pacman" master
+(cd "$P" && node --test tests/*.test.mjs)   # the installed copy must be green too
+"$P/bin/install"                            # idempotent; prints `unchanged` if nothing moved
+"$P/bin/pacman"                             # or omarchy-menu → Pacman, or omarchy-pacman
+```
+
+Quit any running game first (`q`, or Escape on the title); a running
+Quickshell instance keeps the old code until it is restarted. `--ff-only`
+refuses if the submodule has local commits of its own, which means someone
+committed inside `~/.config` instead of the lab; sort that out rather than
+forcing it.
+
+This leaves two things to reconcile when the work is done:
+
+1. `git push` from the lab checkout, so `git pull` inside the submodule (and
+   the other machines' `git submodule update --remote`) see the same commits.
+2. The dotfiles repo (`~`) now has a moved submodule pointer:
+   `git -C ~ add .config/omarchy/plugins/com.keithrowell.pacman && git -C ~ commit -m "Bump Pacman plugin"`.
+
+Player state is shared by every checkout: `~/.local/state/pacman/` holds
+`settings.json` and `highscore.json`, and the game rewrites both in the
+current shape on the next save (older keys such as `mode` and `scanlines`
+are dropped, a single-score `highscore.json` becomes a one-row table).
+Nothing needs migrating by hand.
+
 ## Theme
 
 Every colour in the game comes from
@@ -151,7 +185,8 @@ carries its id, name, version and licence in the standard place.
 
 This repo is the development checkout; the submodule under
 `~/.config/omarchy/plugins/` tracks the same remote and is updated with
-`git pull`.
+`git pull`, or straight from this checkout before a push (see
+[Trying the latest work before it is pushed](#trying-the-latest-work-before-it-is-pushed)).
 
 ```bash
 bin/pacman                        # run from the checkout

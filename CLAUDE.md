@@ -9,7 +9,7 @@ Read `docs/agentile/brief.md` (imported below) and `docs/adr/` before working.
 - `lib/` — game rules as ES modules (`*.mjs`): maze, entities, ghost AI, state machine. No Qt imports here.
 - `tests/` — `node --test` suites over `lib/`.
 - `assets/` — vendored font, sprite data, generated `sfx/*.wav`; `tools/` — the sound generator.
-- `bin/pacman` — launcher (`qs -p app/Main.qml`).
+- `bin/pacman` — launcher (`qs -p app/Main.qml`); `bin/install` — idempotent installer (desktop file, `omarchy-pacman` link, menu entry). The game is installed as a dotfiles submodule under `~/.config/omarchy/plugins/com.keithrowell.pacman`; to put freshly shipped work in front of Keith, fast-forward that submodule from this checkout and re-run `bin/install` — the exact steps are in README "Install".
 
 ## Rules
 
