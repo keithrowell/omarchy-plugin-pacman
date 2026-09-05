@@ -16,7 +16,6 @@ Drop stubs with `/ag-capture <idea>`. Shape them into specs with `/ag-shape`. A 
 - [ ] Extract PixelStage (low-res layer + integer upscale + scanlines) into a reusable Quickshell component for other Omarchy apps — v2
 - [ ] CRT shader overlay (curvature, phosphor, bloom) via ShaderEffect + qsb, ported from libretro crt-pi/crt-easymode — v2
 - [ ] Hand-pixelled sprite bitmaps for exact original silhouettes if the vector approximation disappoints — v2
-- [ ] ASCII/terminal render style as a third graphics mode — v2 — (captured 2026-09-04)
 - [ ] Intermission cutscenes between levels — v2 — (captured 2026-09-04)
 - [ ] Theme reload retry runs forever when colors.toml can never exist (HOME unset); add backoff or a cap — (captured 2026-09-04)
 - [ ] install-as-plugin must preserve the app/lib and app/assets symlinks (Quickshell blackholes files outside the shell root) — (captured 2026-09-04)
