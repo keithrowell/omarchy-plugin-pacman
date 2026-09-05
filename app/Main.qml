@@ -29,7 +29,10 @@ import "render/Screens.js" as Screens
 // Escape pauses and resumes; g toggles arcade/smooth; m toggles mute;
 // Escape on the title quits, q quits at once in a game and after a
 // one-second hold on the title; any key leaves the demo (g, m and F12 do
-// not); F12 grabs a frame when PACMAN_DEBUG=1.
+// not); F12 grabs a frame when PACMAN_DEBUG=1. On the initials screen (after
+// a qualifying game over): up/down (arrows, k/j, w/s) cycle a slot's letter,
+// right/l/d/Enter confirms it (the third confirm saves), left/h/a steps
+// back; q or Escape saves the current letters and quits.
 //
 // Debug hooks (PACMAN_DEBUG=1): the fps is logged once a second (with the
 // screen, phase, mode, fright timer, the sound loop and every ghost's state
@@ -88,14 +91,19 @@ ShellRoot {
         property var pendingPress: null
         // q is down on the title (it has to be held a second to quit).
         property bool quitHeld: false
+        // Guards against saving the initials entry twice (a save-then-quit
+        // on the same transition, or a stray double call).
+        property bool entrySaved: false
 
         // Milliseconds since the loop started; drives the blinks.
         property real timeMs: 0
         property int frames: 0
         property int fps: 0
 
-        readonly property bool onTitle: flow.screen === "title"
         readonly property bool paused: flow.screen === "paused"
+        // Screens that own the whole stage, drawn over their own background
+        // with no board or HUD.
+        readonly property bool boardless: flow.screen === "title" || flow.screen === "initials"
         // 1UP blinks at 250 ms (arcade only); PRESS ENTER and DEMO at 500 ms.
         readonly property bool blinkOn: Math.floor(timeMs / 250) % 2 === 0
         readonly property bool slowBlinkOn: Math.floor(timeMs / 500) % 2 === 0
@@ -189,6 +197,19 @@ ShellRoot {
                     pressed = [];
                     pendingPress = null;
                 }
+                // A real game just finished: offer the initials screen when
+                // the score earns a place on the table. The demo never gets
+                // here (next.attract is false only for a real game, and the
+                // flow itself rejects qualify while attract is set).
+                if (next.screen === "gameover" && !next.attract) {
+                    const rank = Settings.rankFor(state.score);
+                    if (rank > 0) {
+                        next = Flow.flowAction(next, "qualify", { score: state.score, level: state.level, rank: rank });
+                        if (debug) console.info("Debug: qualifies for rank " + rank);
+                    }
+                }
+                if (next.screen === "initials") entrySaved = false;
+                if (prev.screen === "initials" && next.screen === "title") saveEntry(prev.entry);
                 if (debug) {
                     console.info("Debug: flow " + prev.screen + (prev.attract ? " (demo)" : "") + " -> "
                         + next.screen + (next.attract ? " (demo)" : "") + " at tick " + state.tick + " score " + state.score);
@@ -197,13 +218,27 @@ ShellRoot {
             flow = next;
         }
 
+        // Save the initials entry once (a save-then-quit hitting both a
+        // transition and quit() must still write only one row).
+        function saveEntry(entry) {
+            if (!entry || entrySaved) return;
+            entrySaved = true;
+            const initials = Flow.initialsOf(entry);
+            Settings.insertHighScore({ initials: initials, score: entry.score, level: entry.level });
+            console.info("Main: saved " + initials + " " + entry.score + " (rank " + entry.rank + ") to the high-score table");
+        }
+
         function act(action) {
             setFlow(Flow.flowAction(flow, action));
         }
 
-        // Leave. A real game in progress still records its best.
+        // Leave. On the initials screen the current letters are saved first
+        // (q/Escape never lose a qualifying score to an impatient quit). A
+        // table row is otherwise earned only by finishing a game and
+        // entering initials; a mid-game q no longer records anything (see
+        // README).
         function quit() {
-            if (!flow.attract && !onTitle) Settings.setHighScore(state.highScore);
+            if (flow.screen === "initials") saveEntry(flow.entry);
             Qt.quit();
         }
 
@@ -244,6 +279,14 @@ ShellRoot {
                 if (key === Qt.Key_Q) quit();
                 else return false;
                 return true;
+            case "initials":
+                if (key === Qt.Key_Up || key === Qt.Key_K || key === Qt.Key_W) act("entry-up");
+                else if (key === Qt.Key_Down || key === Qt.Key_J || key === Qt.Key_S) act("entry-down");
+                else if (key === Qt.Key_Right || key === Qt.Key_L || key === Qt.Key_D || key === Qt.Key_Return || key === Qt.Key_Enter) act("entry-next");
+                else if (key === Qt.Key_Left || key === Qt.Key_H || key === Qt.Key_A) act("entry-back");
+                else if (key === Qt.Key_Q || key === Qt.Key_Escape) quit();
+                else return false;
+                return true;
             default:
                 // ready, playing, dying, level-clear: the game has the keys.
                 if (name !== null) {
@@ -273,7 +316,10 @@ ShellRoot {
         }
 
         // The window went to the background: drop every held key and the
-        // quit hold, and pause a game in progress (never auto-resumed).
+        // quit hold, and pause a game in progress (never auto-resumed). act
+        // ("pause") is illegal on `initials` and returns the same flow, so
+        // the 30 s initials timeout keeps running while the window is
+        // unfocused (the spec: no auto-pause on that screen).
         function loseFocus() {
             pressed = [];
             pendingPress = null;
@@ -291,7 +337,6 @@ ShellRoot {
                 frameEvents.push(e);
                 if (e.type === "level-clear") console.info("Level clear: score " + s.score + " after " + s.tick + " ticks");
                 if (e.type === "game-over") console.info("Game over: score " + s.score + " on level " + s.level);
-                if ((e.type === "game-over" || e.type === "level-clear") && !f.attract) Settings.setHighScore(s.highScore);
                 if (debug) {
                     console.info("Debug: event " + JSON.stringify(e) + " tick " + s.tick + " score " + s.score
                         + " lives " + s.lives + " left " + s.pelletsLeft + " phase " + s.phase);
@@ -435,7 +480,7 @@ ShellRoot {
                 Canvas {
                     id: backdrop
                     anchors.fill: parent
-                    visible: !window.onTitle
+                    visible: !window.boardless
                     renderStrategy: Canvas.Cooperative
                     antialiasing: !stage.arcade
 
@@ -470,14 +515,27 @@ ShellRoot {
                         ctx.clearRect(0, 0, width, height);
                         ctx.save();
                         ctx.scale(stage.resolution, stage.resolution);
-                        if (flow.screen === "title") {
+                        if (flow.screen === "title" || flow.screen === "initials") {
                             ctx.fillStyle = palette.background;
                             ctx.fillRect(0, 0, stage.nativeWidth, stage.nativeHeight);
-                            Screens.drawTitle(ctx, {
-                                highScore: Settings.highScore,
-                                blinkOn: window.slowBlinkOn,
-                                quitHold: flow.quitHoldTicks / Flow.QUIT_HOLD_TICKS,
-                            }, palette, Theme.fontFamily);
+                            if (flow.screen === "title") {
+                                Screens.drawTitle(ctx, {
+                                    highScore: Settings.highScore,
+                                    table: Settings.highScores,
+                                    page: Flow.titlePage(flow),
+                                    blinkOn: window.slowBlinkOn,
+                                    quitHold: flow.quitHoldTicks / Flow.QUIT_HOLD_TICKS,
+                                }, palette, Theme.fontFamily);
+                            } else {
+                                Screens.drawInitials(ctx, {
+                                    initials: Flow.initialsOf(flow.entry),
+                                    slot: flow.entry.slot,
+                                    score: flow.entry.score,
+                                    rank: flow.entry.rank,
+                                    level: flow.entry.level,
+                                    blinkOn: window.blinkOn,
+                                }, palette, Theme.fontFamily);
+                            }
                             ctx.restore();
                             return;
                         }
@@ -605,6 +663,8 @@ ShellRoot {
                     + " at " + stage.sceneRect.x + "," + stage.sceneRect.y
                     + " box " + stage.sceneRect.width + "x" + stage.sceneRect.height
                     + " | screen " + window.flow.screen + (window.flow.attract ? "/demo" : "")
+                    + (window.flow.screen === "title" ? " page " + Flow.titlePage(window.flow) : "")
+                    + (window.flow.screen === "initials" ? " entry " + Flow.initialsOf(window.flow.entry) + "/" + window.flow.entry.slot : "")
                     + " idle " + window.flow.idleTicks + " title \"" + window.title + "\""
                     + " | tile " + tile.x + "," + tile.y + " pos " + window.state.player.x.toFixed(2) + "," + window.state.player.y.toFixed(2)
                     + " dir " + window.state.player.dir + " want " + window.state.player.wantDir

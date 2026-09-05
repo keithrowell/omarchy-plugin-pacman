@@ -1,8 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  createFlow, flowAction, syncFlow, flowTick, shouldStep,
+  createFlow, flowAction, syncFlow, flowTick, shouldStep, initialsOf, titlePage,
   SCREENS, GAME_SCREENS, ATTRACT_IDLE_TICKS, GAME_OVER_TICKS, QUIT_HOLD_TICKS,
+  INITIALS_TIMEOUT_TICKS, TITLE_PAGE_TICKS,
 } from "../lib/flow.mjs";
 
 /** A flow on `screen` reached through legal actions, so every field is consistent. */
@@ -12,6 +13,11 @@ function at(screen, opts) {
   f = flowAction(f, "start");
   if (screen === "ready") return f;
   if (screen === "paused") return flowAction(f, "pause");
+  if (screen === "initials") {
+    f = syncFlow(f, "game-over");
+    f = flowAction(f, "qualify", { score: 500, level: 1, rank: 1 });
+    return tick(f, GAME_OVER_TICKS);
+  }
   f = syncFlow(f, screen === "gameover" ? "game-over" : screen);
   return f;
 }
@@ -23,18 +29,20 @@ function tick(flow, ticks) {
   return f;
 }
 
-test("constants: 10 s of idle before attract, 3 s of game over, 1 s of q", () => {
+test("constants: 10 s of idle before attract, 3 s of game over, 1 s of q, 30 s of initials, 5 s title pages", () => {
   assert.equal(ATTRACT_IDLE_TICKS, 600);
   assert.equal(GAME_OVER_TICKS, 180);
   assert.equal(QUIT_HOLD_TICKS, 60);
-  assert.deepEqual(SCREENS, ["title", "ready", "playing", "paused", "dying", "level-clear", "gameover"]);
+  assert.equal(INITIALS_TIMEOUT_TICKS, 1800);
+  assert.equal(TITLE_PAGE_TICKS, 300);
+  assert.deepEqual(SCREENS, ["title", "ready", "playing", "paused", "dying", "level-clear", "gameover", "initials"]);
   assert.deepEqual(GAME_SCREENS, ["ready", "playing", "dying", "level-clear"]);
 });
 
-test("createFlow starts on the title with everything at zero and attract enabled", () => {
+test("createFlow starts on the title with everything at zero, attract enabled and no entry", () => {
   const f = createFlow();
   assert.deepEqual(f, {
-    screen: "title", ticks: 0, idleTicks: 0, attract: false, attractEnabled: true, quitHoldTicks: 0, resumeTo: null,
+    screen: "title", ticks: 0, idleTicks: 0, attract: false, attractEnabled: true, quitHoldTicks: 0, resumeTo: null, entry: null,
   });
   assert.equal(createFlow({ attract: false }).attractEnabled, false);
   assert.equal(createFlow({ attract: true }).attractEnabled, true);
@@ -128,8 +136,8 @@ test("pause from ready and from playing; resume returns to the same screen", () 
   }
 });
 
-test("pause is illegal on the title, while dying, on the level flash and on game over", () => {
-  for (const screen of ["title", "dying", "level-clear", "gameover"]) {
+test("pause is illegal on the title, while dying, on the level flash, on game over and on initials", () => {
+  for (const screen of ["title", "dying", "level-clear", "gameover", "initials"]) {
     const f = at(screen);
     assert.equal(flowAction(f, "pause"), f, screen);
     assert.equal(flowAction(f, "toggle-pause"), f, screen);
@@ -151,8 +159,8 @@ test("syncFlow maps every game phase onto a screen and keeps the demo flag", () 
   assert.equal(syncFlow(demo, "game-over").attract, true);
 });
 
-test("syncFlow leaves the title, the pause and the game-over screen alone", () => {
-  for (const screen of ["title", "paused", "gameover"]) {
+test("syncFlow leaves the title, the pause, the game-over and the initials screen alone", () => {
+  for (const screen of ["title", "paused", "gameover", "initials"]) {
     const f = at(screen);
     for (const phase of ["ready", "playing", "dying", "level-clear", "game-over"]) {
       assert.equal(syncFlow(f, phase), f, `${screen} / ${phase}`);
@@ -182,11 +190,162 @@ test("a demo game over also returns to the title, with the demo flag cleared", (
   assert.equal(title.attract, false);
 });
 
+test("qualify sets an entry on a real game over", () => {
+  const over = at("gameover");
+  const q = flowAction(over, "qualify", { score: 500, level: 2, rank: 3 });
+  assert.deepEqual(q.entry, { score: 500, level: 2, rank: 3, letters: [0, 0, 0], slot: 0 });
+});
+
+test("qualify defaults level to 1 when it is missing or not a number", () => {
+  const over = at("gameover");
+  assert.equal(flowAction(over, "qualify", { score: 500, rank: 1 }).entry.level, 1);
+  assert.equal(flowAction(over, "qualify", { score: 500, rank: 1, level: "x" }).entry.level, 1);
+});
+
+test("qualify is illegal everywhere but a real game over, with a positive score and rank, and only once", () => {
+  const payload = { score: 500, level: 1, rank: 1 };
+  for (const screen of ["title", "ready", "playing", "paused", "initials"]) {
+    const f = at(screen);
+    assert.equal(flowAction(f, "qualify", payload), f, screen);
+  }
+  const demoOver = syncFlow(flowAction(createFlow(), "attract"), "game-over");
+  assert.equal(flowAction(demoOver, "qualify", payload), demoOver, "demo game over");
+  const over = at("gameover");
+  assert.equal(flowAction(over, "qualify", { score: 0, level: 1, rank: 1 }), over, "score 0");
+  assert.equal(flowAction(over, "qualify", { score: 500, level: 1, rank: 0 }), over, "rank 0");
+  const qualified = flowAction(over, "qualify", payload);
+  assert.equal(flowAction(qualified, "qualify", payload), qualified, "an entry is already set");
+});
+
+test("game over with an entry moves to initials on the 180th tick, ticks reset, entry intact", () => {
+  const over = flowAction(at("gameover"), "qualify", { score: 500, level: 1, rank: 1 });
+  const almost = tick(over, GAME_OVER_TICKS - 1);
+  assert.equal(almost.screen, "gameover");
+  const initials = flowTick(almost, 1);
+  assert.equal(initials.screen, "initials");
+  assert.equal(initials.ticks, 0);
+  assert.deepEqual(initials.entry, over.entry);
+});
+
+test("game over without an entry still goes to the title (existing behaviour)", () => {
+  const title = tick(at("gameover"), GAME_OVER_TICKS);
+  assert.equal(title.screen, "title");
+  assert.equal(title.entry, null);
+});
+
+test("entry-up and entry-down cycle the active slot only, wrapping A<->Z", () => {
+  let f = at("initials");
+  f = flowAction(f, "entry-up");
+  assert.equal(initialsOf(f.entry), "BAA");
+  f = flowAction(f, "entry-down");
+  assert.equal(initialsOf(f.entry), "AAA");
+  f = flowAction(f, "entry-down");
+  assert.equal(initialsOf(f.entry), "ZAA");
+});
+
+test("entry-next steps through the three slots; the third confirm saves (returns to the title)", () => {
+  let f = at("initials");
+  assert.equal(f.entry.slot, 0);
+  f = flowAction(f, "entry-next");
+  assert.equal(f.entry.slot, 1);
+  f = flowAction(f, "entry-up");
+  assert.equal(initialsOf(f.entry), "ABA");
+  f = flowAction(f, "entry-next");
+  assert.equal(f.entry.slot, 2);
+  const saved = flowAction(f, "entry-next");
+  assert.equal(saved.screen, "title");
+  assert.equal(saved.entry, null);
+  assert.equal(saved.idleTicks, 0);
+  assert.equal(saved.attract, false);
+});
+
+test("entry-back steps back a slot and stops at the first", () => {
+  let f = flowAction(flowAction(at("initials"), "entry-next"), "entry-next");
+  assert.equal(f.entry.slot, 2);
+  f = flowAction(f, "entry-back");
+  assert.equal(f.entry.slot, 1);
+  f = flowAction(f, "entry-back");
+  assert.equal(f.entry.slot, 0);
+  f = flowAction(f, "entry-back");
+  assert.equal(f.entry.slot, 0);
+});
+
+test("initialsOf reads the entry's letters and EMPTY_INITIALS for no entry", () => {
+  assert.equal(initialsOf(null), "---");
+  let f = at("initials");
+  assert.equal(initialsOf(f.entry), "AAA");
+  f = flowAction(f, "entry-up");
+  f = flowAction(f, "entry-next");
+  f = flowAction(f, "entry-up");
+  f = flowAction(f, "entry-up");
+  f = flowAction(f, "entry-next");
+  f = flowAction(f, "entry-down");
+  assert.equal(initialsOf(f.entry), "BCZ");
+});
+
+test("every entry action resets ticks", () => {
+  for (const action of ["entry-up", "entry-down", "entry-next", "entry-back"]) {
+    const f = tick(at("initials"), 30);
+    assert.equal(flowAction(f, action).ticks, 0, action);
+  }
+});
+
+test("entry-up/down/next/back are identity off the initials screen", () => {
+  for (const screen of ["title", "ready", "playing", "paused", "gameover"]) {
+    const f = at(screen);
+    for (const action of ["entry-up", "entry-down", "entry-next", "entry-back"]) {
+      assert.equal(flowAction(f, action), f, `${screen} / ${action}`);
+    }
+  }
+});
+
+test("the initials screen ignores pause, resume, toggle-pause, start, any-key, attract and quit-hold", () => {
+  const f = at("initials");
+  for (const action of ["pause", "resume", "toggle-pause", "start", "any-key", "attract", "quit-hold"]) {
+    assert.equal(flowAction(f, action), f, action);
+  }
+});
+
+test("initials times out at 1800 ticks and not before; an action right before the deadline resets it", () => {
+  const f = at("initials");
+  const almost = tick(f, INITIALS_TIMEOUT_TICKS - 1);
+  assert.equal(almost.screen, "initials");
+  assert.equal(almost.ticks, INITIALS_TIMEOUT_TICKS - 1);
+  const title = flowTick(almost, 1);
+  assert.equal(title.screen, "title");
+  const acted = flowAction(almost, "entry-up");
+  assert.equal(acted.ticks, 0);
+  const stillThere = flowTick(acted, 1);
+  assert.equal(stillThere.screen, "initials");
+});
+
 test("shouldStep only while the game itself advances", () => {
   const expected = {
-    title: false, ready: true, playing: true, paused: false, dying: true, "level-clear": true, gameover: false,
+    title: false, ready: true, playing: true, paused: false, dying: true, "level-clear": true, gameover: false, initials: false,
   };
   for (const screen of SCREENS) assert.equal(shouldStep(at(screen)), expected[screen], screen);
+});
+
+test("titlePage cycles roll-call and high-scores every TITLE_PAGE_TICKS from flow.ticks, unaffected by idleTicks resets", () => {
+  const off = createFlow({ attract: false });
+  assert.equal(titlePage(tick(off, 0)), "roll-call");
+  assert.equal(titlePage(tick(off, TITLE_PAGE_TICKS - 1)), "roll-call");
+  assert.equal(titlePage(tick(off, TITLE_PAGE_TICKS)), "high-scores");
+  assert.equal(titlePage(tick(off, TITLE_PAGE_TICKS * 2 - 1)), "high-scores");
+  assert.equal(titlePage(tick(off, TITLE_PAGE_TICKS * 2)), "roll-call");
+
+  let f = tick(off, 400);
+  assert.equal(titlePage(f), "high-scores");
+  f = flowAction(f, "any-key");
+  assert.equal(titlePage(f), "high-scores", "any-key does not change the page");
+  assert.equal(f.idleTicks, 0);
+  f = flowAction(f, "quit-hold");
+  assert.equal(titlePage(f), "high-scores", "quit-hold does not change the page");
+  assert.equal(f.idleTicks, 0, "quit-hold is activity too");
+
+  const idle = tick(createFlow(), ATTRACT_IDLE_TICKS - 1);
+  const demo = flowTick(idle, 1);
+  assert.equal(demo.screen, "ready", "the demo still starts at 600 idle ticks regardless of the page");
 });
 
 test("ticks count on every screen; the idle counter only on the title", () => {
@@ -209,7 +368,7 @@ test("holding q on the title counts up; releasing resets; illegal elsewhere", ()
   assert.equal(released.quitHoldTicks, 0);
   assert.equal(flowAction(released, "quit-release"), released, "releasing an unheld key changes nothing");
   assert.equal(flowAction(tick(f, 10), "quit-hold").idleTicks, 0, "holding q is activity");
-  for (const screen of ["ready", "playing", "paused", "gameover"]) {
+  for (const screen of ["ready", "playing", "paused", "gameover", "initials"]) {
     const g = at(screen);
     assert.equal(flowAction(g, "quit-hold"), g, screen);
   }
@@ -242,4 +401,14 @@ test("purity: no action or tick mutates its input", () => {
   const frozenOver = JSON.stringify(over);
   flowTick(over, GAME_OVER_TICKS);
   assert.equal(JSON.stringify(over), frozenOver);
+  flowAction(over, "qualify", { score: 500, level: 1, rank: 1 });
+  assert.equal(JSON.stringify(over), frozenOver);
+  const initials = at("initials");
+  const frozenInitials = JSON.stringify(initials);
+  flowAction(initials, "entry-up");
+  flowAction(initials, "entry-down");
+  flowAction(initials, "entry-next");
+  flowAction(initials, "entry-back");
+  flowTick(initials, INITIALS_TIMEOUT_TICKS);
+  assert.equal(JSON.stringify(initials), frozenInitials);
 });
