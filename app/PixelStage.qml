@@ -34,7 +34,7 @@ Item {
 
     // Scanlines (arcade only): the last device-pixel row of every native row
     // is covered by `scanlineColor` at `scanlineAlpha`.
-    property bool scanlines: false
+    property bool scanlines: true
     property color scanlineColor
     property real scanlineAlpha: 0.15
 

@@ -26,8 +26,7 @@ import "render/Screens.js" as Screens
 // (one-shots and the background loop) goes to the Sfx singleton.
 //
 // Keys: Enter/Space starts from the title; arrows / hjkl / WASD move; p or
-// Escape pauses and resumes; g toggles arcade/smooth; m toggles mute; s
-// toggles scanlines wherever it is not "down" (title, paused, game over);
+// Escape pauses and resumes; g toggles arcade/smooth; m toggles mute;
 // Escape on the title quits, q quits at once in a game and after a
 // one-second hold on the title; any key leaves the demo (g, m and F12 do
 // not); F12 grabs a frame when PACMAN_DEBUG=1.
@@ -233,19 +232,16 @@ ShellRoot {
                 if (isStartKey(key)) act("start");
                 else if (key === Qt.Key_Escape) quit();
                 else if (key === Qt.Key_Q) quitHeld = true;
-                else if (key === Qt.Key_S) Settings.toggleScanlines();
                 else if (name !== null) act("any-key");
                 else return false;
                 return true;
             case "paused":
                 if (isStartKey(key) || key === Qt.Key_P || key === Qt.Key_Escape) act("resume");
                 else if (key === Qt.Key_Q) quit();
-                else if (key === Qt.Key_S) Settings.toggleScanlines();
                 else return false;
                 return true;
             case "gameover":
                 if (key === Qt.Key_Q) quit();
-                else if (key === Qt.Key_S) Settings.toggleScanlines();
                 else return false;
                 return true;
             default:
@@ -389,7 +385,7 @@ ShellRoot {
                 const ok = result.saveToFile(window.framePath);
                 console.info("Debug: frame " + (ok ? "saved to " : "NOT saved to ") + window.framePath
                     + " (screen " + window.flow.screen + ", mode " + stage.mode + ", block " + stage.blockSize
-                    + " device px, dpr " + window.devicePixelRatio + ", scanlines " + stage.scanlines + ")");
+                    + " device px, dpr " + window.devicePixelRatio + ")");
             });
         }
 
@@ -430,7 +426,6 @@ ShellRoot {
                 anchors.fill: parent
                 mode: Settings.mode
                 devicePixelRatio: window.devicePixelRatio
-                scanlines: Settings.scanlines
                 scanlineColor: Theme.darker_background
 
                 // Walls and house: thousands of stroked elements, so this
