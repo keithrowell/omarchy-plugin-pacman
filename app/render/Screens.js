@@ -172,7 +172,7 @@ function drawTitle(ctx, info, palette, family) {
     }
 
     ctx.fillStyle = palette.muted;
-    ctx.fillText("G SMOOTH", CENTRE_X, HINT_Y);
+    ctx.fillText("M MUTE", CENTRE_X, HINT_Y);
     ctx.fillText("HOLD Q TO QUIT", CENTRE_X, HINT2_Y);
     ctx.restore();
 }

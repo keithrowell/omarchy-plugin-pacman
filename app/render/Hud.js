@@ -50,12 +50,12 @@ function fontString(family) {
  * spare lives (lives - 1) bottom-left, LEVEL n bottom-right, and READY! or
  * GAME OVER on the board while the phase says so. `palette` needs
  * { text, muted, pacman, ready, gameOver }. `opts` (optional) is
- * { arcade, blinkOn, muted, audio }: in arcade mode 1UP blinks, drawn only
- * while blinkOn, otherwise it is steady; MUTE sits top-right (row 1) while
- * muted, or NO AUDIO when audio is false (no device), in the muted colour.
+ * { blinkOn, muted, audio }: 1UP blinks, drawn only while blinkOn, otherwise
+ * it is steady; MUTE sits top-right (row 1) while muted, or NO AUDIO when
+ * audio is false (no device), in the muted colour.
  */
 function drawHud(ctx, state, palette, family, opts) {
-    var showOneUp = !opts || !opts.arcade || opts.blinkOn;
+    var showOneUp = !opts || opts.blinkOn;
     var status = !opts ? "" : opts.audio === false ? "NO AUDIO" : opts.muted ? "MUTE" : "";
     ctx.save();
     ctx.font = fontString(family);

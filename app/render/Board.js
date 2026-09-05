@@ -4,10 +4,10 @@
 
 // Draws the maze on a Canvas 2D context in native arcade units (8-px tiles,
 // 224x248, offset by Scale.BOARD_ORIGIN to leave the HUD rows above and
-// below). Smooth vector primitives only; PixelStage decides whether they
-// become big pixels or stay crisp. No Qt, no Theme: the parsed maze, a
-// palette object and the time come in as arguments, so a theme change
-// recolours on the very next paint.
+// below). Vector primitives only; PixelStage rasterises them into the big
+// pixel look. No Qt, no Theme: the parsed maze, a palette object and the
+// time come in as arguments, so a theme change recolours on the very next
+// paint.
 //
 // Walls are auto-tiled from Maze.wallMask: the outline runs along every
 // wall/non-wall boundary, inset into the wall, twice (an outer and an inner
@@ -187,7 +187,7 @@ function drawPellets(ctx, board, palette, timeMs) {
 /**
  * The static part of the board: background, walls and house. Costly to
  * rasterise (thousands of stroked elements), so Main.qml keeps it on its own
- * canvas and repaints it only when the palette, size, mode or `flash`
+ * canvas and repaints it only when the palette, size or `flash`
  * changes. `palette` is a plain object { wall, door, background, flash } of
  * colour strings; with `flash` set the walls are stroked in `palette.flash`
  * (the level-clear blink).

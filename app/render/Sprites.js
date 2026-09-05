@@ -1,9 +1,9 @@
 .pragma library
 .import "../lib/scale.mjs" as Scale
 
-// Sprites drawn as small vector routines in native arcade units (ADR-0002):
-// the same code serves the arcade and smooth stage modes. No Qt, no Theme:
-// entities and a palette object come in as arguments.
+// Sprites drawn as small vector routines, drawn once in native units for the
+// arcade stage (ADR-0002). No Qt, no Theme: entities and a palette object
+// come in as arguments.
 
 var TILE = 8;
 var BOARD_WIDTH = 224;
