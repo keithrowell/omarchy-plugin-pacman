@@ -1,5 +1,11 @@
 # As-built — Publish 1.0.0 as a standalone public repo
 
+**Updated after review** (`review.md`, commit 3d1ec50): the review failed
+the first build on one blocking defect in the printed menu action (a
+quoted `~` that bash never expands under `bash -lc`). See "Menu action
+quoting" below for the wrong first attempt and the fix; the rest of this
+document is otherwise unchanged from the pre-review build.
+
 ## shell.qml design: the plan's step 1 worked, no fallback needed
 
 The plan's primary design worked first try:
@@ -32,23 +38,41 @@ over. `app/lib` and `app/assets` were `git rm`'d.
   nearest existing thing is the "pacman on PATH shadows the package
   manager" guard. The requirements check was placed right after that guard
   (using the `say()`/`would()` helpers, which were moved up a few lines so
-  the check could use `say`). It runs even under `--uninstall`; that was
-  simpler than gating it and is harmless (an uninstall does not care what
-  is installed).
+  the check could use `say`). It is skipped under `--uninstall` (review
+  nit: an uninstall does not need the game runnable, and it kept the
+  uninstall output quieter — a one-line `(( ! UNINSTALL ))` guard).
 - **Menu action quoting**: the plan didn't spell out how a `ROOT` containing
   spaces (this lab checkout's `Dropbox (Maestral)` path, or any real user's
   home) should be embedded in the printed JSON snippet's `action` string.
-  The action's path is now always double-quoted (`uwsm-app -- "$LAUNCH"`),
-  with the quotes themselves escaped (`\"`) inside the JSON string so the
+  The action's path is always double-quoted (`uwsm-app -- "$LAUNCH"`), with
+  the quotes themselves escaped (`\"`) inside the JSON string so the
   printed snippet stays valid JSON while decoding to a real, shell-quoted
-  path. Verified end-to-end: piped the printed snippet through `JSON.parse`
-  and confirmed the decoded `action` is `uwsm-app -- "<path>"`.
-- **`~`-collapsing**: `DISPLAY_LAUNCH` collapses a `$HOME`-rooted `LAUNCH` to
-  `~/...` for readability (matching the old fixed suggestion's style when a
-  checkout happens to live under `$HOME`, e.g. the canonical plugin path);
-  a checkout elsewhere shows its full absolute path. This is a shell
-  string match (`case "$LAUNCH" in "$HOME"/*)`), not a regex substitution,
-  to avoid `$HOME` characters that are regex-special.
+  path.
+
+  **First attempt was wrong, caught by review**: the first cut collapsed a
+  `$HOME`-rooted path to a quoted `~` (`uwsm-app -- "~/.config/.../bin/pacman"`)
+  and was "verified" only by piping the printed snippet through
+  `JSON.parse` — which confirmed the JSON was valid but never ran the
+  decoded command. `omarchy-shell` runs a menu action as `bash -lc
+  "<action>"`, and bash does not tilde-expand inside double quotes (only
+  variables), so every `$HOME`-rooted checkout — including the README's
+  canonical clone location — printed an action that failed with exit 127.
+  Fixed by emitting a literal, unexpanded `$HOME` instead of `~`
+  (`DISPLAY_LAUNCH="\$HOME${LAUNCH#"$HOME"}"`), which bash *does* expand
+  inside double quotes, at the time the action actually runs. A checkout
+  outside `$HOME` still shows its full absolute path, quoted, unchanged.
+  This time verified by actually running the decoded action: a stub
+  `uwsm-app` that checks `[ -x "$1" ]`, invoked via `bash -lc "<action>"`
+  with `HOME` set, for both a `$HOME`-rooted checkout and one outside
+  `$HOME` (`tests/install.test.mjs`), plus a manual `bash -lc` run against
+  the exact strings `bin/install` prints (see Verification run below).
+- **`$HOME`-collapsing** (not `~`, see above): `DISPLAY_LAUNCH` collapses a
+  `$HOME`-rooted `LAUNCH` to `$HOME/...` for readability and portability
+  across machines that share the menu file (matching the old fixed
+  suggestion's intent when a checkout happens to live under `$HOME`, e.g.
+  the canonical plugin path); a checkout elsewhere shows its full absolute
+  path. This is a shell string match (`case "$LAUNCH" in "$HOME"/*)`), not
+  a regex substitution, to avoid `$HOME` characters that are regex-special.
 - **`PLUGIN_DIR` variable removed** rather than kept as a fallback/default:
   since `DISPLAY_LAUNCH` naturally collapses to the same string when a
   checkout genuinely lives at `~/.config/omarchy/plugins/com.keithrowell.pacman`,

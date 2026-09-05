@@ -37,9 +37,14 @@ checkout. It:
   "label": "Pacman",
   "description": "Pac-Man in big arcade pixels, coloured from the Omarchy theme",
   "aliases": ["pacman", "game", "arcade"],
-  "action": "uwsm-app -- ~/.config/omarchy/plugins/com.keithrowell.pacman/bin/pacman"
+  "action": "uwsm-app -- \"$HOME/.config/omarchy/plugins/com.keithrowell.pacman/bin/pacman\""
 }
 ```
+
+(`bin/install` prints your checkout's real path here, quoted so it survives
+spaces, with `$HOME` — not `~` — for whatever lives under your home
+directory: `omarchy-shell` runs an action with `bash -lc "<action>"`, and
+bash does not tilde-expand inside double quotes, only expand variables.)
 
 If `uwsm-app` is not installed the installer prints the action as the bare
 launcher path instead; the game then runs outside the session's app scope,
@@ -239,11 +244,6 @@ the Sous plugin is set up. The manifest exists so the plugin directory
 carries its id, name, version and licence in the standard place.
 
 ## Development
-
-This repo is the development checkout; the submodule under
-`~/.config/omarchy/plugins/` tracks the same remote and is updated with
-`git pull`, or straight from this checkout before a push (see
-[Trying the latest work before it is pushed](#trying-the-latest-work-before-it-is-pushed)).
 
 ```bash
 bin/pacman                        # run from the checkout

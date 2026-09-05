@@ -31,13 +31,19 @@ done
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 LAUNCH="$ROOT/bin/pacman"
 ICON="$ROOT/assets/icon.png"
-# The path this checkout's own menu action and requirements hint use,
-# whatever directory this runs from. ~/.config/omarchy/plugins/com.keithrowell.pacman
-# is only the suggested clone location (see README), not special-cased here:
-# a checkout there naturally collapses to that same display form below.
+# The path the menu action prints, whatever directory this runs from.
+# ~/.config/omarchy/plugins/com.keithrowell.pacman is only the suggested
+# clone location (see README), not special-cased: a checkout there
+# naturally collapses to that same $HOME-relative form below.
+#
+# A literal, unexpanded "$HOME" (not "~"): omarchy-shell runs the printed
+# action as `bash -lc "<action>"`, and bash does not tilde-expand inside
+# double quotes, only variables. "$HOME" inside the action's own double
+# quotes expands correctly when the action actually runs, and still
+# survives a path with spaces.
 DISPLAY_LAUNCH="$LAUNCH"
 case "$LAUNCH" in
-  "$HOME"/*) DISPLAY_LAUNCH="~${LAUNCH#"$HOME"}" ;;
+  "$HOME"/*) DISPLAY_LAUNCH="\$HOME${LAUNCH#"$HOME"}" ;;
 esac
 
 DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
@@ -75,13 +81,16 @@ would() { if (( DRY_RUN )); then say "$1: would $2"; return 0; else return 1; fi
 # Requirements: quickshell (the qs binary) and qt6-multimedia (SoundEffect's
 # backend). A stale or missing package should not block writing the desktop
 # file, so this only prints an install hint; it never fails the run.
-missing_pkgs=()
-command -v qs >/dev/null 2>&1 || missing_pkgs+=(quickshell)
-if command -v pacman >/dev/null 2>&1; then
-  pacman -Qq qt6-multimedia >/dev/null 2>&1 || missing_pkgs+=(qt6-multimedia)
-fi
-if (( ${#missing_pkgs[@]} )); then
-  say "requirements: missing ${missing_pkgs[*]} — install with: sudo pacman -S ${missing_pkgs[*]}"
+# Skipped under --uninstall: nothing there needs the game runnable.
+if (( ! UNINSTALL )); then
+  missing_pkgs=()
+  command -v qs >/dev/null 2>&1 || missing_pkgs+=(quickshell)
+  if command -v pacman >/dev/null 2>&1; then
+    pacman -Qq qt6-multimedia >/dev/null 2>&1 || missing_pkgs+=(qt6-multimedia)
+  fi
+  if (( ${#missing_pkgs[@]} )); then
+    say "requirements: missing ${missing_pkgs[*]} — install with: sudo pacman -S ${missing_pkgs[*]}"
+  fi
 fi
 
 # Uninstall removes only what this checkout owns: a desktop file whose Exec

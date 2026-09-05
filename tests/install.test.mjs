@@ -77,6 +77,35 @@ function pathWithStubs(home, { qs = false, installed = [] } = {}) {
   return dir;
 }
 
+// A stub `uwsm-app` that reports (via stdout, prefixed OK:/FAIL:) whether
+// the path it was handed after `--` is an executable file — the same
+// thing a real launch depends on. Used to prove the printed menu action
+// actually resolves, not just that it is well-formed JSON.
+function stubUwsmAppDir() {
+  const dir = mkdtempSync(join(tmpdir(), "pacman-uwsm-"));
+  writeFileSync(
+    join(dir, "uwsm-app"),
+    '#!/bin/sh\nshift\nif [ -x "$1" ]; then\n  echo "OK:$1"\nelse\n  echo "FAIL:$1"\n  exit 127\nfi\n',
+    { mode: 0o755 },
+  );
+  return dir;
+}
+
+// Runs a decoded menu `action` exactly the way omarchy-shell runs it
+// (`bash -lc "<action>"`, per plugins/menu/Menu.qml), with `home` as $HOME
+// and a stub `uwsm-app` on PATH so nothing real ever launches.
+function runMenuAction(action, home) {
+  const stubDir = stubUwsmAppDir();
+  try {
+    return spawnSync("bash", ["-lc", action], {
+      encoding: "utf8",
+      env: { HOME: home, PATH: `${stubDir}:/usr/bin:/bin` },
+    });
+  } finally {
+    rmSync(stubDir, { recursive: true, force: true });
+  }
+}
+
 test("first run writes the desktop file and links the launcher; the second reports unchanged", () => {
   const home = scratchHome();
   try {
@@ -161,12 +190,18 @@ test("the printed menu snippet is JSON with the label, aliases and a uwsm-app ac
     assert.equal(entry.action, `uwsm-app -- "${LAUNCH}"`);
     assert.match(result.out, /not applied/);
     assert.ok(!existsSync(join(home, ".config")), "nothing written under ~/.config");
+
+    // The action must actually resolve when run the way omarchy-shell runs
+    // it (bash -lc "<action>"), not just parse as JSON.
+    const exec = runMenuAction(entry.action, home);
+    assert.equal(exec.status, 0, exec.stderr);
+    assert.equal(exec.stdout.trim(), `OK:${LAUNCH}`);
   } finally {
     rmSync(home, { recursive: true, force: true });
   }
 });
 
-test("without uwsm-app the menu action is the bare quoted launcher path and says why", () => {
+test("without uwsm-app the menu action is the bare quoted launcher path, says why, and still resolves", () => {
   const home = scratchHome();
   try {
     const result = run(home, [], { PATH: pathWithoutUwsm(home) });
@@ -174,12 +209,21 @@ test("without uwsm-app the menu action is the bare quoted launcher path and says
     const entry = snippet(result.out);
     assert.equal(entry.action, `"${LAUNCH}"`);
     assert.match(result.out, /uwsm-app is not on PATH/);
+
+    // Without uwsm-app the action is just the quoted path itself; running
+    // it directly (bash -lc "\"$LAUNCH\"") must exec bin/pacman, not fail.
+    const exec = spawnSync("bash", ["-lc", `[ -x ${entry.action} ] && echo OK:${entry.action}`], {
+      encoding: "utf8",
+      env: { HOME: home, PATH: "/usr/bin:/bin" },
+    });
+    assert.equal(exec.status, 0, exec.stderr);
+    assert.equal(exec.stdout.trim(), `OK:${LAUNCH}`);
   } finally {
     rmSync(home, { recursive: true, force: true });
   }
 });
 
-test("the menu action collapses a $HOME-rooted checkout to a ~-relative path", () => {
+test("the menu action expands $HOME (not a quoted ~) for a $HOME-rooted checkout, and it resolves", () => {
   // A real (not scratch) $HOME set to this checkout's own parent directory,
   // so LAUNCH is genuinely $HOME-rooted; --dry-run touches nothing there.
   const home = dirname(ROOT);
@@ -189,7 +233,14 @@ test("the menu action collapses a $HOME-rooted checkout to a ~-relative path", (
     assert.equal(result.code, 0, result.err);
     const entry = snippet(result.out);
     const tail = LAUNCH.slice(home.length); // keeps the leading "/"
-    assert.equal(entry.action, `uwsm-app -- "~${tail}"`);
+    assert.equal(entry.action, `uwsm-app -- "$HOME${tail}"`);
+
+    // bash does not tilde-expand inside double quotes, but it does expand
+    // "$HOME" there — this is the case the review caught: a quoted "~..."
+    // form fails with exit 127 under bash -lc, "$HOME..." must not.
+    const exec = runMenuAction(entry.action, home);
+    assert.equal(exec.status, 0, exec.stderr);
+    assert.equal(exec.stdout.trim(), `OK:${LAUNCH}`);
   } finally {
     rmSync(xdg, { recursive: true, force: true });
   }
