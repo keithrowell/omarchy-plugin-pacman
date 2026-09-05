@@ -32,34 +32,36 @@ someone who is not Keith.
 
 ## Acceptance criteria
 
-- [ ] No symlinks in the repo. `app/lib` and `app/assets` are gone; the app
+- [x] No symlinks in the repo. `app/lib` and `app/assets` are gone; the app
       reaches `lib/` and `assets/` as real paths inside the Quickshell root
       (for example a root `shell.qml` that loads `app/Main.qml` with
       `bin/pacman` running `qs -p <repo root>`, or `app/` importing `../lib`
       with the root moved up). `find . -type l` outside `.git` prints nothing.
       `bin/pacman` still launches the game with theme, font and sounds working;
       `node --test tests/*.test.mjs` untouched and green.
-- [ ] `manifest.json` version is `1.0.0`; `kinds` stays `[]` and the file
+- [x] `manifest.json` version is `1.0.0`; `kinds` stays `[]` and the file
       keeps documenting (in README) that the shell ignores it by design.
-- [ ] `bin/install` works from any clone location, not only the plugin path:
+- [x] `bin/install` works from any clone location, not only the plugin path:
       the desktop file, the `omarchy-pacman` link and the printed menu action
       use the real checkout path (`ROOT`), with the plugin path only as the
       default suggestion. `--dry-run` from `/tmp/somewhere/omarchy-plugin-pacman`
       shows that path in every line.
-- [ ] README "Install" is rewritten for the public: a top section
+- [x] README "Install" is rewritten for the public: a top section
       "Install on Omarchy" with `git clone https://github.com/keithrowell/omarchy-plugin-pacman.git ~/.config/omarchy/plugins/com.keithrowell.pacman`,
       `bin/install`, the menu snippet, requirements (`quickshell`, `qt6-multimedia`
       and whatever `bin/install` checks), update (`git pull` + `bin/install`) and
       uninstall. A short "Why not `omarchy plugin add`" note explains the
       standalone choice (ADR-0001) and links the ADR. Keith's dotfiles-submodule
       flow moves to a "Maintainer" subsection or to CLAUDE.md.
-- [ ] `CHANGELOG.md` with a `1.0.0` entry summarising the shipped specs
+- [x] `CHANGELOG.md` with a `1.0.0` entry summarising the shipped specs
       (0001–0007 v1, then scanlines-only, high-score table, smooth removed, fruit).
 - [ ] The ship step (human sign-off) does, in order: tag `v1.0.0` on the merge
       commit, push the tag, `gh repo edit keithrowell/omarchy-plugin-pacman --visibility public`,
       then fast-forward the installed submodule and re-run `bin/install`.
       Record the tag and the public URL in the ship notes.
-- [ ] Inbox stub "install-as-plugin must preserve the app/lib and app/assets
+      **Not done here on purpose** — tagging, pushing and repo visibility
+      need Keith's sign-off after review.
+- [x] Inbox stub "install-as-plugin must preserve the app/lib and app/assets
       symlinks" is removed as superseded.
 
 ## Scope boundary

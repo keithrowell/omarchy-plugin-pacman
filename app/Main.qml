@@ -2,21 +2,22 @@ import QtQuick
 import QtQuick.Window
 import Quickshell
 import Quickshell.Hyprland
-import "lib/maze.mjs" as Maze
-import "lib/maze-data.mjs" as MazeData
-import "lib/game.mjs" as Game
-import "lib/flow.mjs" as Flow
-import "lib/attract.mjs" as Attract
-import "lib/attract-script.mjs" as AttractScript
-import "lib/input.mjs" as Input
-import "lib/player.mjs" as Player
-import "lib/sound-map.mjs" as SoundMap
+import "../lib/maze.mjs" as Maze
+import "../lib/maze-data.mjs" as MazeData
+import "../lib/game.mjs" as Game
+import "../lib/flow.mjs" as Flow
+import "../lib/attract.mjs" as Attract
+import "../lib/attract-script.mjs" as AttractScript
+import "../lib/input.mjs" as Input
+import "../lib/player.mjs" as Player
+import "../lib/sound-map.mjs" as SoundMap
 import "render/Board.js" as Board
 import "render/Sprites.js" as Sprites
 import "render/Hud.js" as Hud
 import "render/Screens.js" as Screens
 
-// Entry point: `qs -p app/Main.qml` (via bin/pacman). One floating window in
+// Entry point: `qs -p <repo root>` (via bin/pacman) loads the root
+// shell.qml, which instantiates this file. One floating window in
 // the theme's colours holding the PixelStage; the game is drawn every frame
 // in native 224x288 units (ADR-0002), the maze offset below the HUD rows.
 // The game state lives in lib/game.mjs and advances in fixed 1/60 s ticks;

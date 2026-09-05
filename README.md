@@ -1,51 +1,112 @@
 # Pacman for Omarchy
 
 Pac-Man in its own window, drawn in big arcade pixels and coloured from the
-live Omarchy theme. It is a standalone Quickshell app (`qs -p app/Main.qml`),
+live Omarchy theme. It is a standalone Quickshell app (`qs -p <repo root>`),
 not a bar widget: a quick game to open for a few minutes that looks like it
 belongs to the desktop, and recolours itself when the theme changes.
 
 ![Pacman under the decorative-stitch theme](preview.png)
 
-## Keys
-
-| Key | What it does |
-|---|---|
-| Arrows, `hjkl`, `WASD` | Move |
-| Enter or Space | Start from the title; resume when paused |
-| `p` or Escape | Pause and resume |
-| Escape | On the title: quit |
-| `q` | In a game: quit at once (no score is recorded). On the title: hold for a second to quit |
-| `m` | Mute and unmute (remembered; MUTE shows in the top-right corner while muted) |
-| F12 | Save a frame to `~/.local/state/pacman/frame.png` (only with `PACMAN_DEBUG=1`) |
-| Initials screen | Up/down (arrows, `k`/`j`, `w`/`s`) cycles the active slot's letter; right or Enter confirms it (the third confirm saves the row); left steps back a slot; `q` or Escape saves the current letters, then quits |
-
-Any game key ends the attract demo (`m` and F12 do not). Mute lives in
-`~/.local/state/pacman/settings.json`; the high-score table is `~/.local/state/pacman/highscore.json`
-(a pre-table file with a single score is migrated to the table shape on load).
-
-## High scores
-
-A game over with a qualifying score (top ten, ties keep the older entry ahead of the newer one) goes to
-an initials-entry screen instead of straight back to the title: three letters, cycled with up/down and
-confirmed one at a time with Enter/right; 30 s of no input saves whatever is showing. The row is written
-once, either on the third confirm or on `q`/Escape. **Only a finished game earns a row** — quitting a game
-in progress with `q` no longer records a score (a `---` row for every abandoned game would clutter the
-table); the attract demo never writes to the table either. The title screen alternates every 5 s between
-the roll-call and a HIGH SCORES page listing all ten rows (empty ones shown as `---`); the HUD's
-`HIGH SCORE` is always the table's top row.
-
-## Install
-
-The game is tracked as a submodule of the dotfiles repo the way the other
-`com.keithrowell.*` plugins are (see the `omarchy-machine-setup` skill). On a
-machine that already has the dotfiles:
+## Install on Omarchy
 
 ```bash
-cd ~
-git submodule update --init .config/omarchy/plugins/com.keithrowell.pacman
+git clone https://github.com/keithrowell/omarchy-plugin-pacman.git ~/.config/omarchy/plugins/com.keithrowell.pacman
 ~/.config/omarchy/plugins/com.keithrowell.pacman/bin/install
 ```
+
+`bin/install` is idempotent (`--dry-run` shows what it would do,
+`--uninstall` reverses it) and works from wherever you cloned it, not only
+the path above — every path it prints or writes is derived from its own
+checkout. It:
+
+- writes `~/.local/share/applications/Pacman.desktop`, so the app launcher
+  lists Pacman with the bundled icon;
+- links `~/.local/bin/omarchy-pacman` to `bin/pacman` when `~/.local/bin`
+  exists, so the game can be started from a terminal;
+- checks for `quickshell` (the `qs` binary) and `qt6-multimedia`, printing
+  a `sudo pacman -S ...` line for whatever is missing (this never fails
+  the install — a stale package cache should not block the desktop file);
+- prints, but does not apply, the entry for
+  `~/.config/omarchy/extensions/omarchy-menu.jsonc`. Paste it next to the
+  other entries and `omarchy-menu` lists Pacman under the `pacman`, `game`
+  and `arcade` aliases:
+
+```jsonc
+"pacman": {
+  "icon": "󰊴",
+  "label": "Pacman",
+  "description": "Pac-Man in big arcade pixels, coloured from the Omarchy theme",
+  "aliases": ["pacman", "game", "arcade"],
+  "action": "uwsm-app -- \"$HOME/.config/omarchy/plugins/com.keithrowell.pacman/bin/pacman\""
+}
+```
+
+(`bin/install` prints your checkout's real path here, quoted so it survives
+spaces, with `$HOME` — not `~` — for whatever lives under your home
+directory: `omarchy-shell` runs an action with `bash -lc "<action>"`, and
+bash does not tilde-expand inside double quotes, only expand variables.)
+
+If `uwsm-app` is not installed the installer prints the action as the bare
+launcher path instead; the game then runs outside the session's app scope,
+which only matters for how it is grouped in `systemctl --user`.
+
+**Never put anything called `pacman` on `PATH`.** That is the Arch package
+manager. The launcher in this repo is `bin/pacman` and is only ever run by
+its full path (the desktop file and the menu action do that); the PATH
+command is `omarchy-pacman`. The installer refuses to run if a `pacman` on
+`PATH` resolves into this repo.
+
+### Requirements
+
+- Omarchy on Hyprland — the theme colours come from
+  `~/.local/state/omarchy/current/theme/colors.toml`.
+- `quickshell` — provides the `qs` binary the game runs on.
+- `qt6-multimedia` — sound playback (`SoundEffect`); without it the game
+  runs silent and shows NO AUDIO top-right.
+
+`bin/install` checks for the last two and tells you what to install if
+either is missing.
+
+### Update
+
+```bash
+cd ~/.config/omarchy/plugins/com.keithrowell.pacman
+git pull
+bin/install
+```
+
+`bin/install` reports `unchanged` when nothing moved.
+
+### Uninstall
+
+```bash
+~/.config/omarchy/plugins/com.keithrowell.pacman/bin/install --uninstall
+```
+
+Then remove the `"pacman"` entry from
+`~/.config/omarchy/extensions/omarchy-menu.jsonc` by hand if you added it
+(the installer does not manage the menu file), and delete the checkout if
+you are done with it:
+`rm -rf ~/.config/omarchy/plugins/com.keithrowell.pacman`.
+
+### Why not `omarchy plugin add`
+
+The Omarchy plugin marketplace only lists shell-hosted plugins (kinds
+`bar`, `bar-widget`, `menu`, `overlay`, `panel`, `service`); a 60 fps game
+with its own window and its own event loop does not fit any of them
+without running inside the long-lived `omarchy-shell` process, which is
+the exact risk `docs/adr/0001-standalone-quickshell-process.md` avoids.
+So this plugin installs like any other cloned tool: clone it into the
+plugins directory for consistency and discoverability, then run
+`bin/install` yourself. `manifest.json` still carries the id, name,
+version and licence in the standard place, with `kinds: []` — see
+[Validation](#validation).
+
+### Maintainer
+
+Keith tracks the game as a submodule of the dotfiles repo the way the
+other `com.keithrowell.*` plugins are (see the `omarchy-machine-setup`
+skill).
 
 Adding it to the dotfiles for the first time:
 
@@ -60,42 +121,15 @@ git commit -m "Add Pacman plugin as submodule"
 ~/.config/omarchy/plugins/com.keithrowell.pacman/bin/install
 ```
 
-`bin/install` is idempotent (`--dry-run` shows what it would do,
-`--uninstall` reverses it). It:
+On a machine that already has the dotfiles:
 
-- writes `~/.local/share/applications/Pacman.desktop`, so the app launcher
-  lists Pacman with the bundled icon;
-- links `~/.local/bin/omarchy-pacman` to `bin/pacman` when `~/.local/bin`
-  exists, so the game can be started from a terminal;
-- prints, but does not apply, the entry for
-  `~/.config/omarchy/extensions/omarchy-menu.jsonc`. Paste it next to the
-  other entries and `omarchy-menu` lists Pacman under the `pacman`, `game`
-  and `arcade` aliases:
-
-```jsonc
-"pacman": {
-  "icon": "󰊴",
-  "label": "Pacman",
-  "description": "Pac-Man in big arcade pixels, coloured from the Omarchy theme",
-  "aliases": ["pacman", "game", "arcade"],
-  "action": "uwsm-app -- ~/.config/omarchy/plugins/com.keithrowell.pacman/bin/pacman"
-}
+```bash
+cd ~
+git submodule update --init .config/omarchy/plugins/com.keithrowell.pacman
+~/.config/omarchy/plugins/com.keithrowell.pacman/bin/install
 ```
 
-If `uwsm-app` is not installed the installer prints the action as the bare
-launcher path instead; the game then runs outside the session's app scope,
-which only matters for how it is grouped in `systemctl --user`.
-
-**Never put anything called `pacman` on `PATH`.** That is the Arch package
-manager. The launcher in this repo is `bin/pacman` and is only ever run by
-its full path (the desktop file and the menu action do that); the PATH
-command is `omarchy-pacman`. The installer refuses to run if a `pacman` on
-`PATH` resolves into this repo.
-
-Updates: `git pull` inside the submodule, then `bin/install` again (it
-reports `unchanged` when nothing moved).
-
-### Trying the latest work before it is pushed
+#### Trying the latest work before it is pushed
 
 The development checkout lives in the lab (`~/Dropbox (Maestral)/lab/omarchy_pacman`)
 and is usually ahead of GitHub while the Agentile loop is shipping specs.
@@ -128,6 +162,34 @@ Player state is shared by every checkout: `~/.local/state/pacman/` holds
 current shape on the next save (older keys such as `mode` and `scanlines`
 are dropped, a single-score `highscore.json` becomes a one-row table).
 Nothing needs migrating by hand.
+
+## Keys
+
+| Key | What it does |
+|---|---|
+| Arrows, `hjkl`, `WASD` | Move |
+| Enter or Space | Start from the title; resume when paused |
+| `p` or Escape | Pause and resume |
+| Escape | On the title: quit |
+| `q` | In a game: quit at once (no score is recorded). On the title: hold for a second to quit |
+| `m` | Mute and unmute (remembered; MUTE shows in the top-right corner while muted) |
+| F12 | Save a frame to `~/.local/state/pacman/frame.png` (only with `PACMAN_DEBUG=1`) |
+| Initials screen | Up/down (arrows, `k`/`j`, `w`/`s`) cycles the active slot's letter; right or Enter confirms it (the third confirm saves the row); left steps back a slot; `q` or Escape saves the current letters, then quits |
+
+Any game key ends the attract demo (`m` and F12 do not). Mute lives in
+`~/.local/state/pacman/settings.json`; the high-score table is `~/.local/state/pacman/highscore.json`
+(a pre-table file with a single score is migrated to the table shape on load).
+
+## High scores
+
+A game over with a qualifying score (top ten, ties keep the older entry ahead of the newer one) goes to
+an initials-entry screen instead of straight back to the title: three letters, cycled with up/down and
+confirmed one at a time with Enter/right; 30 s of no input saves whatever is showing. The row is written
+once, either on the third confirm or on `q`/Escape. **Only a finished game earns a row** — quitting a game
+in progress with `q` no longer records a score (a `---` row for every abandoned game would clutter the
+table); the attract demo never writes to the table either. The title screen alternates every 5 s between
+the roll-call and a HIGH SCORES page listing all ten rows (empty ones shown as `---`); the HUD's
+`HIGH SCORE` is always the table's top row.
 
 ## Theme
 
@@ -182,11 +244,6 @@ the Sous plugin is set up. The manifest exists so the plugin directory
 carries its id, name, version and licence in the standard place.
 
 ## Development
-
-This repo is the development checkout; the submodule under
-`~/.config/omarchy/plugins/` tracks the same remote and is updated with
-`git pull`, or straight from this checkout before a push (see
-[Trying the latest work before it is pushed](#trying-the-latest-work-before-it-is-pushed)).
 
 ```bash
 bin/pacman                        # run from the checkout

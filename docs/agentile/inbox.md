@@ -17,7 +17,6 @@ Drop stubs with `/ag-capture <idea>`. Shape them into specs with `/ag-shape`. A 
 - [ ] Hand-pixelled sprite bitmaps for exact original silhouettes if the vector approximation disappoints — v2
 - [ ] Intermission cutscenes between levels — v2 — (captured 2026-09-04)
 - [ ] Theme reload retry runs forever when colors.toml can never exist (HOME unset); add backoff or a cap — (captured 2026-09-04)
-- [ ] install-as-plugin must preserve the app/lib and app/assets symlinks (Quickshell blackholes files outside the shell root) — (captured 2026-09-04)
 - [ ] Arcade quad stretched ~0.5% at fractional device window sizes (e.g. 431×664 logical at 1.6): log surface buffer size vs stage.height*dpr in the debug line; also check dprs where native/dpr is not a whole logical pixel (1.5 → 149.33) — (captured 2026-09-04)
 - [ ] F12 debug grab should count off-palette pixels and log it, so a blurred arcade texture is caught automatically — (captured 2026-09-04)
 - [ ] XDG_STATE_HOME support for Theme and Settings paths (HOME unset gives "undefined/…") — (captured 2026-09-04)

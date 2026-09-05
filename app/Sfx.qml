@@ -118,19 +118,19 @@ QtObject {
 
     Component.onCompleted: checkStatus()
 
-    property SoundEffect fxStart: SoundEffect { source: Qt.resolvedUrl("assets/sfx/start.wav"); onStatusChanged: root.checkStatus() }
-    property SoundEffect fxWakaA: SoundEffect { source: Qt.resolvedUrl("assets/sfx/waka-a.wav"); onStatusChanged: root.checkStatus() }
-    property SoundEffect fxWakaB: SoundEffect { source: Qt.resolvedUrl("assets/sfx/waka-b.wav"); onStatusChanged: root.checkStatus() }
-    property SoundEffect fxSiren1: SoundEffect { source: Qt.resolvedUrl("assets/sfx/siren-1.wav"); loops: SoundEffect.Infinite; onStatusChanged: root.checkStatus() }
-    property SoundEffect fxSiren2: SoundEffect { source: Qt.resolvedUrl("assets/sfx/siren-2.wav"); loops: SoundEffect.Infinite; onStatusChanged: root.checkStatus() }
-    property SoundEffect fxSiren3: SoundEffect { source: Qt.resolvedUrl("assets/sfx/siren-3.wav"); loops: SoundEffect.Infinite; onStatusChanged: root.checkStatus() }
-    property SoundEffect fxSiren4: SoundEffect { source: Qt.resolvedUrl("assets/sfx/siren-4.wav"); loops: SoundEffect.Infinite; onStatusChanged: root.checkStatus() }
-    property SoundEffect fxSiren5: SoundEffect { source: Qt.resolvedUrl("assets/sfx/siren-5.wav"); loops: SoundEffect.Infinite; onStatusChanged: root.checkStatus() }
-    property SoundEffect fxFright: SoundEffect { source: Qt.resolvedUrl("assets/sfx/fright.wav"); loops: SoundEffect.Infinite; onStatusChanged: root.checkStatus() }
-    property SoundEffect fxEyes: SoundEffect { source: Qt.resolvedUrl("assets/sfx/eyes.wav"); loops: SoundEffect.Infinite; onStatusChanged: root.checkStatus() }
-    property SoundEffect fxGhostEaten: SoundEffect { source: Qt.resolvedUrl("assets/sfx/ghost-eaten.wav"); onStatusChanged: root.checkStatus() }
-    property SoundEffect fxDeath: SoundEffect { source: Qt.resolvedUrl("assets/sfx/death.wav"); onStatusChanged: root.checkStatus() }
-    property SoundEffect fxExtraLife: SoundEffect { source: Qt.resolvedUrl("assets/sfx/extra-life.wav"); onStatusChanged: root.checkStatus() }
-    property SoundEffect fxLevelClear: SoundEffect { source: Qt.resolvedUrl("assets/sfx/level-clear.wav"); onStatusChanged: root.checkStatus() }
-    property SoundEffect fxFruit: SoundEffect { source: Qt.resolvedUrl("assets/sfx/fruit.wav"); onStatusChanged: root.checkStatus() }
+    property SoundEffect fxStart: SoundEffect { source: Qt.resolvedUrl("../assets/sfx/start.wav"); onStatusChanged: root.checkStatus() }
+    property SoundEffect fxWakaA: SoundEffect { source: Qt.resolvedUrl("../assets/sfx/waka-a.wav"); onStatusChanged: root.checkStatus() }
+    property SoundEffect fxWakaB: SoundEffect { source: Qt.resolvedUrl("../assets/sfx/waka-b.wav"); onStatusChanged: root.checkStatus() }
+    property SoundEffect fxSiren1: SoundEffect { source: Qt.resolvedUrl("../assets/sfx/siren-1.wav"); loops: SoundEffect.Infinite; onStatusChanged: root.checkStatus() }
+    property SoundEffect fxSiren2: SoundEffect { source: Qt.resolvedUrl("../assets/sfx/siren-2.wav"); loops: SoundEffect.Infinite; onStatusChanged: root.checkStatus() }
+    property SoundEffect fxSiren3: SoundEffect { source: Qt.resolvedUrl("../assets/sfx/siren-3.wav"); loops: SoundEffect.Infinite; onStatusChanged: root.checkStatus() }
+    property SoundEffect fxSiren4: SoundEffect { source: Qt.resolvedUrl("../assets/sfx/siren-4.wav"); loops: SoundEffect.Infinite; onStatusChanged: root.checkStatus() }
+    property SoundEffect fxSiren5: SoundEffect { source: Qt.resolvedUrl("../assets/sfx/siren-5.wav"); loops: SoundEffect.Infinite; onStatusChanged: root.checkStatus() }
+    property SoundEffect fxFright: SoundEffect { source: Qt.resolvedUrl("../assets/sfx/fright.wav"); loops: SoundEffect.Infinite; onStatusChanged: root.checkStatus() }
+    property SoundEffect fxEyes: SoundEffect { source: Qt.resolvedUrl("../assets/sfx/eyes.wav"); loops: SoundEffect.Infinite; onStatusChanged: root.checkStatus() }
+    property SoundEffect fxGhostEaten: SoundEffect { source: Qt.resolvedUrl("../assets/sfx/ghost-eaten.wav"); onStatusChanged: root.checkStatus() }
+    property SoundEffect fxDeath: SoundEffect { source: Qt.resolvedUrl("../assets/sfx/death.wav"); onStatusChanged: root.checkStatus() }
+    property SoundEffect fxExtraLife: SoundEffect { source: Qt.resolvedUrl("../assets/sfx/extra-life.wav"); onStatusChanged: root.checkStatus() }
+    property SoundEffect fxLevelClear: SoundEffect { source: Qt.resolvedUrl("../assets/sfx/level-clear.wav"); onStatusChanged: root.checkStatus() }
+    property SoundEffect fxFruit: SoundEffect { source: Qt.resolvedUrl("../assets/sfx/fruit.wav"); onStatusChanged: root.checkStatus() }
 }

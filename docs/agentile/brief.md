@@ -28,9 +28,10 @@ arcade look, coloured from the live Omarchy theme.
 
 ## Constraints
 
-- **Stack:** QML on a standalone Quickshell process (`qs -p app/Main.qml`), not inside
-  `omarchy-shell` — see ADR-0001. Game logic in plain ES modules (`lib/*.mjs`) so
-  `node --test` covers it and QML imports the same files.
+- **Stack:** QML on a standalone Quickshell process (`qs -p <repo root>`, a root
+  `shell.qml` instantiating `app/Main.qml`), not inside `omarchy-shell` — see
+  ADR-0001. Game logic in plain ES modules (`lib/*.mjs`) so `node --test`
+  covers it and QML imports the same files.
 - **Rendering:** one `Canvas` renderer in native 224×248 units inside a `PixelStage`
   component; arcade mode = low-res layer with nearest-neighbour integer upscale
   (the only mode in the game; PixelStage keeps a smooth fit for reuse) — see

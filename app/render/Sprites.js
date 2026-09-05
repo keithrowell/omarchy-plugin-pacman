@@ -1,7 +1,7 @@
 .pragma library
-.import "../lib/scale.mjs" as Scale
-.import "../lib/fruit.mjs" as Fruit
-.import "../lib/fruit-sprites.mjs" as FruitSprites
+.import "../../lib/scale.mjs" as Scale
+.import "../../lib/fruit.mjs" as Fruit
+.import "../../lib/fruit-sprites.mjs" as FruitSprites
 
 // Sprites drawn as small vector routines, drawn once in native units for the
 // arcade stage (ADR-0002). No Qt, no Theme: entities and a palette object

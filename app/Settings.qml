@@ -2,8 +2,8 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import "lib/settings.mjs" as SettingsLib
-import "lib/highscores.mjs" as HighScoresLib
+import "../lib/settings.mjs" as SettingsLib
+import "../lib/highscores.mjs" as HighScoresLib
 
 // Persistent settings in ~/.local/state/pacman/settings.json (mute only) and
 // the high-score table in highscore.json beside it (a pre-table file with a

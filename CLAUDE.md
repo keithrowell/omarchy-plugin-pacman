@@ -5,11 +5,12 @@ Read `docs/agentile/brief.md` (imported below) and `docs/adr/` before working.
 
 ## Layout
 
+- `shell.qml` (repo root) — the Quickshell config root; instantiates `app/Main.qml`. No symlinks: this is what lets `app/` reach `lib/` and `assets/` as real sibling directories (ADR-0001 amendment, spec 0001-publish-standalone).
 - `app/` — QML: `Main.qml` (window, game loop, input), `Theme.qml` (colors.toml reader), `PixelStage.qml` (low-res layer + upscale), `Sfx.qml` (sound), `render/` (canvas drawing in native units).
 - `lib/` — game rules as ES modules (`*.mjs`): maze, entities, ghost AI, state machine. No Qt imports here.
 - `tests/` — `node --test` suites over `lib/`.
 - `assets/` — vendored font, sprite data, generated `sfx/*.wav`; `tools/` — the sound generator.
-- `bin/pacman` — launcher (`qs -p app/Main.qml`); `bin/install` — idempotent installer (desktop file, `omarchy-pacman` link, menu entry). The game is installed as a dotfiles submodule under `~/.config/omarchy/plugins/com.keithrowell.pacman`; to put freshly shipped work in front of Keith, fast-forward that submodule from this checkout and re-run `bin/install` — the exact steps are in README "Install".
+- `bin/pacman` — launcher (`qs -p <repo root>`); `bin/install` — idempotent installer (desktop file, `omarchy-pacman` link, menu entry, requirements check), path-agnostic (every path it prints comes from its own checkout). The game is also installed as a dotfiles submodule under `~/.config/omarchy/plugins/com.keithrowell.pacman`; to put freshly shipped work in front of Keith, fast-forward that submodule from this checkout and re-run `bin/install` — the exact steps are in README "Install on Omarchy" → "Maintainer".
 
 ## Rules
 

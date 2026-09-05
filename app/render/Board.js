@@ -1,6 +1,6 @@
 .pragma library
-.import "../lib/maze.mjs" as Maze
-.import "../lib/scale.mjs" as Scale
+.import "../../lib/maze.mjs" as Maze
+.import "../../lib/scale.mjs" as Scale
 
 // Draws the maze on a Canvas 2D context in native arcade units (8-px tiles,
 // 224x248, offset by Scale.BOARD_ORIGIN to leave the HUD rows above and
