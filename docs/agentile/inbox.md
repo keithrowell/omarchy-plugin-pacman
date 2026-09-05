@@ -11,7 +11,6 @@ Drop stubs with `/ag-capture <idea>`. Shape them into specs with `/ag-shape`. A 
 - [ ] Sound: generated chiptune WAVs, event-driven playback, mute — (captured 2026-09-04)
 - [ ] Game flow: title screen, ready/pause/game over, high score, CRT polish — (captured 2026-09-04)
 - [ ] Install as Omarchy plugin: menu entry, desktop file, dotfiles submodule, README — (captured 2026-09-04)
-- [ ] Fruit bonus items per level (cherry, strawberry…) — v2 — (captured 2026-09-04)
 - [ ] Gamepad support via Qt gamepad or evdev — v2 — (captured 2026-09-04)
 - [ ] Extract PixelStage (low-res layer + integer upscale + scanlines) into a reusable Quickshell component for other Omarchy apps — v2
 - [ ] CRT shader overlay (curvature, phosphor, bloom) via ShaderEffect + qsb, ported from libretro crt-pi/crt-easymode — v2
@@ -35,7 +34,6 @@ Drop stubs with `/ag-capture <idea>`. Shape them into specs with `/ag-shape`. A 
 - [ ] Demo HUD climbs the live high score above the real one; pin Settings.highScore in the HUD while attract runs — (captured 2026-09-04)
 - [ ] s/g/q on the title do not reset the attract idle timer; send any-key — (captured 2026-09-04)
 - [ ] Save the high score on window close (compositor kill / SUPER+W), not only game-over, level-clear and q — (captured 2026-09-04)
-- [ ] Defer the corrupt highscore.json rewrite out of onLoaded (Qt.callLater) to silence the fileview "dropped operation" warning — (captured 2026-09-04)
 - [ ] Guard the debug key-script names lookup with hasOwnProperty — (captured 2026-09-04)
 - [ ] Attract demo ends by the 40 s cap; a longer cap or smarter autopilot would give a real game-over ending — (captured 2026-09-04)
 - [ ] Env switch to hide the debug overlay while keeping F12, so preview grabs need no --blank — (captured 2026-09-04)

@@ -1,7 +1,7 @@
 ---
 title: High-score table with three-letter initials
 slug: high-score-table
-status: in_progress
+status: shipped
 depends_on: []
 type: feature
 route: background
@@ -12,6 +12,7 @@ outcome: a qualifying game-over lets the player enter three initials, and that r
 claimed_by: 206e3dac-9cc9-4058-870a-7309ecbd27b6
 label: 
 claimed_at: 2026-09-05T11:41:42Z
+shipped_at: 2026-09-05T12:38:13Z
 ---
 
 # High-score table with three-letter initials
