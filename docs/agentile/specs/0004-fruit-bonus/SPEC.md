@@ -1,7 +1,7 @@
 ---
 title: Fruit bonus items per level, drawn as theme-coloured pixel bitmaps
 slug: fruit-bonus
-status: ready
+status: in_progress
 depends_on: []
 type: feature
 route: background
@@ -9,9 +9,9 @@ business_value: medium
 technical_certainty: high
 created: 2026-09-05
 outcome: a fruit appears below the ghost house after 70 pellets on level 1, eating it scores 100, and the bottom HUD shows the level's fruit
-claimed_by:
-label:
-claimed_at:
+claimed_by: 206e3dac-9cc9-4058-870a-7309ecbd27b6
+label: 
+claimed_at: 2026-09-05T12:52:40Z
 ---
 
 # Fruit bonus items per level, drawn as theme-coloured pixel bitmaps
