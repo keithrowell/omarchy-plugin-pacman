@@ -1,7 +1,7 @@
 ---
 title: Remove smooth mode — arcade big pixels with scanlines is the only look
 slug: remove-smooth-mode
-status: in_progress
+status: shipped
 depends_on: [scanlines-always-on]
 type: feature
 route: background
@@ -12,6 +12,7 @@ outcome: the game always renders in arcade big pixels with scanlines, g does not
 claimed_by: 206e3dac-9cc9-4058-870a-7309ecbd27b6
 label: 
 claimed_at: 2026-09-05T12:38:22Z
+shipped_at: 2026-09-05T12:52:28Z
 ---
 
 # Remove smooth mode — arcade big pixels with scanlines is the only look
