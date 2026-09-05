@@ -5,8 +5,8 @@ import {
   parseHighScore, serialiseHighScore, MAX_HIGH_SCORE,
 } from "../lib/settings.mjs";
 
-test("defaults are arcade mode without scanlines, sound on", () => {
-  assert.deepEqual(SETTINGS_DEFAULTS, { mode: "arcade", scanlines: false, muted: false });
+test("defaults are arcade mode, sound on", () => {
+  assert.deepEqual(SETTINGS_DEFAULTS, { mode: "arcade", muted: false });
   assert.deepEqual(MODES, ["arcade", "smooth"]);
 });
 
@@ -29,51 +29,46 @@ test("parseSettings returns the defaults on an unknown mode or wrong shape", () 
   assert.deepEqual(parseSettings("null"), SETTINGS_DEFAULTS);
 });
 
-test("parseSettings reads a valid smooth setting; a pre-scanlines file keeps them off and the sound on", () => {
-  assert.deepEqual(parseSettings('{"mode":"smooth"}'), { mode: "smooth", scanlines: false, muted: false });
+test("parseSettings reads a valid smooth setting; sound stays on", () => {
+  assert.deepEqual(parseSettings('{"mode":"smooth"}'), { mode: "smooth", muted: false });
 });
 
-test("parseSettings reads scanlines and ignores a non-boolean one without losing the mode", () => {
-  assert.deepEqual(parseSettings('{"mode":"smooth","scanlines":true}'), { mode: "smooth", scanlines: true, muted: false });
-  assert.deepEqual(parseSettings('{"mode":"arcade","scanlines":false}'), { mode: "arcade", scanlines: false, muted: false });
-  assert.deepEqual(parseSettings('{"mode":"smooth","scanlines":"yes"}'), { mode: "smooth", scanlines: false, muted: false });
-  assert.deepEqual(parseSettings('{"mode":"smooth","scanlines":1}'), { mode: "smooth", scanlines: false, muted: false });
-  assert.deepEqual(parseSettings('{"scanlines":true}'), { mode: "arcade", scanlines: true, muted: false });
+test("parseSettings ignores a stored scanlines key without losing the mode", () => {
+  assert.deepEqual(parseSettings('{"mode":"smooth","scanlines":false}'), { mode: "smooth", muted: false });
+  assert.deepEqual(parseSettings('{"mode":"arcade","scanlines":true}'), { mode: "arcade", muted: false });
 });
 
 test("parseSettings reads muted and ignores a non-boolean one without losing the rest", () => {
-  assert.deepEqual(parseSettings('{"muted":true}'), { mode: "arcade", scanlines: false, muted: true });
-  assert.deepEqual(parseSettings('{"mode":"smooth","scanlines":true,"muted":true}'), { mode: "smooth", scanlines: true, muted: true });
-  assert.deepEqual(parseSettings('{"mode":"smooth","muted":false}'), { mode: "smooth", scanlines: false, muted: false });
-  assert.deepEqual(parseSettings('{"mode":"smooth","muted":"yes"}'), { mode: "smooth", scanlines: false, muted: false });
-  assert.deepEqual(parseSettings('{"mode":"smooth","muted":1}'), { mode: "smooth", scanlines: false, muted: false });
-  assert.deepEqual(parseSettings('{"mode":"smooth","muted":null}'), { mode: "smooth", scanlines: false, muted: false });
+  assert.deepEqual(parseSettings('{"muted":true}'), { mode: "arcade", muted: true });
+  assert.deepEqual(parseSettings('{"mode":"smooth","muted":true}'), { mode: "smooth", muted: true });
+  assert.deepEqual(parseSettings('{"mode":"smooth","muted":false}'), { mode: "smooth", muted: false });
+  assert.deepEqual(parseSettings('{"mode":"smooth","muted":"yes"}'), { mode: "smooth", muted: false });
+  assert.deepEqual(parseSettings('{"mode":"smooth","muted":1}'), { mode: "smooth", muted: false });
+  assert.deepEqual(parseSettings('{"mode":"smooth","muted":null}'), { mode: "smooth", muted: false });
 });
 
 test("parseSettings ignores unknown keys", () => {
-  assert.deepEqual(parseSettings('{"mode":"smooth","volume":3}'), { mode: "smooth", scanlines: false, muted: false });
+  assert.deepEqual(parseSettings('{"mode":"smooth","volume":3}'), { mode: "smooth", muted: false });
 });
 
 test("serialiseSettings emits pretty JSON ending in a newline", () => {
-  const text = serialiseSettings({ mode: "smooth", scanlines: true, muted: true });
+  const text = serialiseSettings({ mode: "smooth", muted: true });
   assert.ok(text.endsWith("\n"));
-  assert.deepEqual(JSON.parse(text), { mode: "smooth", scanlines: true, muted: true });
+  assert.deepEqual(JSON.parse(text), { mode: "smooth", muted: true });
   assert.ok(text.includes("\n  "), "pretty printed");
 });
 
-test("serialiseSettings drops unknown keys and fixes invalid values", () => {
-  assert.deepEqual(JSON.parse(serialiseSettings({ mode: "nope", extra: 1 })), { mode: "arcade", scanlines: false, muted: false });
-  assert.deepEqual(JSON.parse(serialiseSettings({ mode: "smooth", scanlines: "on" })), { mode: "smooth", scanlines: false, muted: false });
-  assert.deepEqual(JSON.parse(serialiseSettings({ mode: "smooth", muted: "on" })), { mode: "smooth", scanlines: false, muted: false });
-  assert.deepEqual(JSON.parse(serialiseSettings(undefined)), { mode: "arcade", scanlines: false, muted: false });
+test("serialiseSettings drops unknown keys, including a carried-over scanlines, and fixes invalid values", () => {
+  assert.deepEqual(JSON.parse(serialiseSettings({ mode: "nope", extra: 1 })), { mode: "arcade", muted: false });
+  assert.deepEqual(JSON.parse(serialiseSettings({ mode: "smooth", scanlines: true })), { mode: "smooth", muted: false });
+  assert.deepEqual(JSON.parse(serialiseSettings({ mode: "smooth", muted: "on" })), { mode: "smooth", muted: false });
+  assert.deepEqual(JSON.parse(serialiseSettings(undefined)), { mode: "arcade", muted: false });
 });
 
 test("settings round-trip", () => {
   for (const mode of MODES) {
-    for (const scanlines of [false, true]) {
-      for (const muted of [false, true]) {
-        assert.deepEqual(parseSettings(serialiseSettings({ mode, scanlines, muted })), { mode, scanlines, muted });
-      }
+    for (const muted of [false, true]) {
+      assert.deepEqual(parseSettings(serialiseSettings({ mode, muted })), { mode, muted });
     }
   }
 });
@@ -81,10 +76,8 @@ test("settings round-trip", () => {
 test("parseSettings never returns the shared defaults object", () => {
   const a = parseSettings("");
   a.mode = "smooth";
-  a.scanlines = true;
   a.muted = true;
   assert.equal(SETTINGS_DEFAULTS.mode, "arcade");
-  assert.equal(SETTINGS_DEFAULTS.scanlines, false);
   assert.equal(SETTINGS_DEFAULTS.muted, false);
 });
 
