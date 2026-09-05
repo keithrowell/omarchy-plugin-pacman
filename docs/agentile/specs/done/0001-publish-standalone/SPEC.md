@@ -1,7 +1,8 @@
 ---
 title: Publish 1.0.0 as a standalone public repo — no symlinks, tagged, clone-and-install docs
 slug: publish-standalone
-status: in_progress
+status: shipped
+shipped_at: 2026-09-05T23:11:07Z
 depends_on: []
 type: feature
 route: background
