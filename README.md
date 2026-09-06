@@ -5,7 +5,7 @@ live Omarchy theme. It is a standalone Quickshell app (`qs -p <repo root>`),
 not a bar widget: a quick game to open for a few minutes that looks like it
 belongs to the desktop, and recolours itself when the theme changes.
 
-![Pacman under the decorative-stitch theme](preview.png)
+![Pacman under the Gruvbox Dark theme, with scanlines](preview.png)
 
 ## Install on Omarchy
 
