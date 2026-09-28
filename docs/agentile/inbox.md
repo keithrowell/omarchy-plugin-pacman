@@ -32,7 +32,6 @@ Drop stubs with `/ag-capture <idea>`. Shape them into specs with `/ag-shape`. A 
 - [ ] Allow auto-pause from dying and level-clear (focus loss there is dropped and the next READY runs unfocused) — (captured 2026-09-04)
 - [ ] Demo HUD climbs the live high score above the real one; pin Settings.highScore in the HUD while attract runs — (captured 2026-09-04)
 - [ ] s/g/q on the title do not reset the attract idle timer; send any-key — (captured 2026-09-04)
-- [ ] Save the high score on window close (compositor kill / SUPER+W), not only game-over, level-clear and q — (captured 2026-09-04)
 - [ ] Guard the debug key-script names lookup with hasOwnProperty — (captured 2026-09-04)
 - [ ] Attract demo ends by the 40 s cap; a longer cap or smarter autopilot would give a real game-over ending — (captured 2026-09-04)
 - [ ] Env switch to hide the debug overlay while keeping F12, so preview grabs need no --blank — (captured 2026-09-04)
