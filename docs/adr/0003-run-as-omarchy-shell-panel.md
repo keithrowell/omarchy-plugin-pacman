@@ -1,13 +1,15 @@
 ---
 number: 0003
 title: Run the game as an omarchy-shell panel plugin
-status: proposed
+status: rejected
 date: 2026-09-28
 ---
 
 # ADR-0003: Run the game as an omarchy-shell panel plugin
 
 ## Status
+
+**Rejected 2026-09-28.** Keith stopped the port: Pacman stays a standalone app (ADR-0001 stands unchanged), even though that keeps it off the Omarchy plugin marketplace. Specs `panel-port` and `marketplace-readiness` were abandoned. The text below is the proposal as written.
 
 proposed. When accepted, it supersedes the process decision in ADR-0001
 (standalone `qs -p` process, `kinds: []`). ADR-0001's other commitments
