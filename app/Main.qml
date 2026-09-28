@@ -35,6 +35,14 @@ import "render/Screens.js" as Screens
 // right/l/d/Enter confirms it (the third confirm saves), left/h/a steps
 // back; q or Escape saves the current letters and quits.
 //
+// The window closing however the compositor does it (SUPER+W, a titlebar
+// close, `hyprctl dispatch closewindow`) goes through the same shutdown as a
+// key quit: sound stops at once, a qualifying mid-round score is saved under
+// EMPTY_INITIALS (or the initials entry on screen, if that's what's showing),
+// and the process exits — no more windowless qs process outliving its
+// window. Unlike q, a window close does record a mid-round score; see
+// lib/flow.mjs closeRow and README "High scores".
+//
 // Debug hooks (PACMAN_DEBUG=1): the fps is logged once a second (with the
 // screen, phase, mode, fright timer, the sound loop and every ghost's state
 // and tile) and shown in the overlay with the player's tile and wanted
@@ -43,7 +51,12 @@ import "render/Screens.js" as Screens
 // same handlers 1.5 s after start (keys are tapped: pressed and released),
 // a number in the list being a pause in milliseconds (Hyprland's permission
 // system blocks virtual keyboards, so this is how the build is verified
-// unattended).
+// unattended). Two non-key tokens exercise the window-close path without
+// ever asking the compositor to close a window: "closewin" sets visible=false
+// directly (the same hook a compositor close drives), and "qthenclose" quits
+// as "q" would and then simulates a second, stray close signal, proving it
+// saves nothing on top of an already-recorded quit. tools/close-check.sh uses
+// both.
 ShellRoot {
     FloatingWindow {
         id: window
@@ -95,6 +108,10 @@ ShellRoot {
         // Guards against saving the initials entry twice (a save-then-quit
         // on the same transition, or a stray double call).
         property bool entrySaved: false
+        // Set the moment any exit path starts, so a compositor close and a
+        // key quit racing each other (or Qt.quit() re-raising the signal
+        // that led here) only run shutdown() once.
+        property bool quitting: false
 
         // Milliseconds since the loop started; drives the blinks.
         property real timeMs: 0
@@ -237,14 +254,65 @@ ShellRoot {
             setFlow(Flow.flowAction(flow, action));
         }
 
-        // Leave. On the initials screen the current letters are saved first
-        // (q/Escape never lose a qualifying score to an impatient quit). A
-        // table row is otherwise earned only by finishing a game and
-        // entering initials; a mid-game q no longer records anything (see
-        // README).
+        // The one way out, however it started (a key or the window closing).
+        // Idempotent: a second call (Qt.quit() itself can re-raise
+        // lastWindowClosed/visibleChanged) is a no-op (callers that also need
+        // to guard a *save* before this, like windowClosed(), check
+        // `quitting` themselves first). Stops sound before the frame loop so
+        // nothing can restart a loop after, then blocks on the pending
+        // high-score/settings write (Settings.flush()) so it is not lost to
+        // Qt.quit()'s async race; exitWatchdog is a fallback for a hang
+        // *after* Qt.quit() itself, not for a slow flush (see below).
+        function shutdown(reason) {
+            if (quitting) return;
+            quitting = true;
+            exitWatchdog.start();
+            Sfx.stopAll();
+            loop.running = false;
+            Settings.flush();
+            console.info("Main: quitting (" + reason + ")");
+            Qt.quit();
+        }
+
+        // What a window close (compositor kill, SUPER+W - not q/Escape, which
+        // go through quit() below) saves before shutting down: the initials
+        // entry on screen, or a qualifying mid-round score under EMPTY_INITIALS
+        // (see lib/flow.mjs closeRow). q itself still records nothing.
+        function closeSave() {
+            if (flow.screen === "initials") {
+                saveEntry(flow.entry);
+                return;
+            }
+            const row = Flow.closeRow(flow, state.score, state.level);
+            if (row === null) return;
+            if (Settings.insertHighScore(row)) {
+                console.info("Main: window closed, saved " + row.initials + " " + row.score + " to the high-score table");
+            }
+        }
+
+        // The compositor closed the window (see the two hooks below, either
+        // of which may fire, sometimes both for the same close). `via` names
+        // which signal called this, so close-check.md can record which one
+        // actually fires. Guards on `quitting` itself, before closeSave(): a
+        // real SUPER+W fires both `visibleChanged` and `lastWindowClosed`, so
+        // without this a second call would run closeSave() again (a
+        // duplicate high-score row, or a mid-round row saved on top of an
+        // already-saved initials entry) even though shutdown() below is
+        // idempotent on its own.
+        function windowClosed(via) {
+            if (quitting) return;
+            closeSave();
+            shutdown("window closed: " + via);
+        }
+
+        // Leave via a key (q, Escape, the title's q-hold). On the initials
+        // screen the current letters are saved first (q/Escape never lose a
+        // qualifying score to an impatient quit). A table row is otherwise
+        // earned only by finishing a game and entering initials; a mid-game q
+        // no longer records anything (see README).
         function quit() {
             if (flow.screen === "initials") saveEntry(flow.entry);
-            Qt.quit();
+            shutdown("key");
         }
 
         // Returns true when the key was handled.
@@ -581,6 +649,30 @@ ShellRoot {
             function onModeChanged() { backdrop.requestPaint(); }
         }
 
+        // The compositor closing the window (SUPER+W, a click on the close
+        // button, `hyprctl dispatch closewindow`) only hides the QWindow;
+        // Quickshell does not quit on it, so both plausible signals are
+        // hooked. A real close can fire both (or one, then Qt.quit() below
+        // re-raising the other during teardown); windowClosed()'s own
+        // `quitting` guard makes every call after the first a no-op, so
+        // whichever fires second never re-runs closeSave(). close-check.md
+        // records which one actually fires first.
+        Connections {
+            target: Quickshell
+            function onLastWindowClosed() { window.windowClosed("lastWindowClosed"); }
+        }
+        onVisibleChanged: if (!visible) windowClosed("visibleChanged")
+
+        // Belt and braces, for a hang *after* Qt.quit() is called (e.g. Qt
+        // itself failing to tear down): shutdown()'s Settings.flush() blocks
+        // this same thread, so it cannot race the flush and does not bound
+        // its worst case — only Settings.flush()/waitForJob() returning does.
+        Timer {
+            id: exitWatchdog
+            interval: 1500
+            onTriggered: Qt.quit()
+        }
+
         // The frame loop always runs; while paused (or on the title, or
         // during game over) advance() steps the flow's clocks but not the game.
         FrameAnimation {
@@ -637,6 +729,38 @@ ShellRoot {
             onTriggered: {
                 if (next >= window.debugKeys.length) return;
                 const name = window.debugKeys[next++];
+                // Not a key: drives the window's own visible=false, the same
+                // hook a compositor close drives (onVisibleChanged), so
+                // tools/close-check.sh can exercise it without ever touching
+                // the compositor (never `hyprctl dispatch closewindow` or
+                // similar: see docs/agentile/specs/quit-on-window-close/plan.md).
+                // A real SUPER+W often raises both onVisibleChanged and
+                // Quickshell.onLastWindowClosed for the same close; the second
+                // call here simulates that so the check also proves
+                // windowClosed()'s own `quitting` guard stops the second call
+                // from re-running closeSave() (no duplicate high-score row).
+                if (name === "closewin") {
+                    console.info("Debug: closewin on " + window.flow.screen + " at tick " + window.state.tick);
+                    window.visible = false;
+                    window.windowClosed("lastWindowClosed (simulated second signal)");
+                    return;
+                }
+                // Not a key either: quits exactly as "q" would (records
+                // nothing mid-game), then simulates a stray lastWindowClosed
+                // arriving during Qt.quit()'s own teardown, in the same
+                // synchronous call (Qt.quit() only posts a quit event; it
+                // does not stop this script, and the process exits too fast
+                // for a *separate*, later-scheduled debug key to land, so the
+                // second signal has to be simulated right here to prove
+                // windowClosed()'s `quitting` guard, not shutdown()'s, is
+                // what stops it saving a mid-round row on top of the q that
+                // already recorded nothing.
+                if (name === "qthenclose") {
+                    console.info("Debug: qthenclose on " + window.flow.screen + " at tick " + window.state.tick);
+                    window.quit();
+                    window.windowClosed("lastWindowClosed (simulated post-quit)");
+                    return;
+                }
                 const key = names[name];
                 console.info("Debug: key " + name + (key === undefined ? " (unknown, ignored)" : "")
                     + " on " + window.flow.screen + " at tick " + window.state.tick);

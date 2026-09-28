@@ -59,6 +59,14 @@ QtObject {
         highScoreFile.setText(HighScoresLib.serialiseHighScores(highScores));
     }
 
+    // Block until any pending async write (from setText) has landed. Used
+    // only on the way out, so a save just before Qt.quit() is not lost to
+    // the atomic write's async completion; normal saves stay async.
+    function flush() {
+        highScoreFile.waitForJob();
+        settingsFile.waitForJob();
+    }
+
     property FileView settingsFile: FileView {
         path: root.path
         atomicWrites: true

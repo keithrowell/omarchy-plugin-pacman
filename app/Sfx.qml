@@ -76,6 +76,15 @@ QtObject {
         setLoop(null);
     }
 
+    // Stop everything at once, on the way out: no loop wanted, nothing
+    // playing. Safe when muted or unavailable (stop on an unloaded or
+    // errored SoundEffect is a no-op).
+    function stopAll() {
+        wantedLoop = "";
+        currentLoop = "";
+        for (const name of names) effects[name].stop();
+    }
+
     // Start or stop the loop effect so it matches wantedLoop under mute and availability.
     function applyLoop() {
         const target = muted || !available ? "" : wantedLoop;

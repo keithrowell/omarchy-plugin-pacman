@@ -180,6 +180,13 @@ Any game key ends the attract demo (`m` and F12 do not). Mute lives in
 `~/.local/state/pacman/settings.json`; the high-score table is `~/.local/state/pacman/highscore.json`
 (a pre-table file with a single score is migrated to the table shape on load).
 
+Closing the window itself (SUPER+W, a titlebar close, or any other compositor
+close) quits immediately too, with the sound stopped at once — no more
+windowless `qs` process left running after the window is gone. Unlike `q`,
+closing the window **does** record a qualifying mid-round score, under the
+initials `---` (or the initials screen's own letters, if that's what's
+showing); see "High scores" below.
+
 ## High scores
 
 A game over with a qualifying score (top ten, ties keep the older entry ahead of the newer one) goes to
@@ -187,9 +194,12 @@ an initials-entry screen instead of straight back to the title: three letters, c
 confirmed one at a time with Enter/right; 30 s of no input saves whatever is showing. The row is written
 once, either on the third confirm or on `q`/Escape. **Only a finished game earns a row** — quitting a game
 in progress with `q` no longer records a score (a `---` row for every abandoned game would clutter the
-table); the attract demo never writes to the table either. The title screen alternates every 5 s between
-the roll-call and a HIGH SCORES page listing all ten rows (empty ones shown as `---`); the HUD's
-`HIGH SCORE` is always the table's top row.
+table); the attract demo never writes to the table either. Closing the window is the one exception:
+a qualifying mid-round score is saved under the initials `---` before the process exits (the initials
+screen's own letters are saved instead if that's what's on screen when the window closes) — a deliberate
+difference from `q`, since a compositor close is not a deliberate abandon. The title screen alternates
+every 5 s between the roll-call and a HIGH SCORES page listing all ten rows (empty ones shown as `---`);
+the HUD's `HIGH SCORE` is always the table's top row.
 
 ## Theme
 
