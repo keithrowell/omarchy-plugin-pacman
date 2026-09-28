@@ -51,7 +51,10 @@ import "render/Screens.js" as Screens
 // same handlers 1.5 s after start (keys are tapped: pressed and released),
 // a number in the list being a pause in milliseconds (Hyprland's permission
 // system blocks virtual keyboards, so this is how the build is verified
-// unattended).
+// unattended). The one non-key token, "closewin", sets visible=false on the
+// window directly, exercising the same close path a compositor window close
+// drives (tools/close-check.sh uses it instead of ever asking the compositor
+// to close a window).
 ShellRoot {
     FloatingWindow {
         id: window
@@ -711,6 +714,16 @@ ShellRoot {
             onTriggered: {
                 if (next >= window.debugKeys.length) return;
                 const name = window.debugKeys[next++];
+                // Not a key: drives the window's own visible=false, the same
+                // hook a compositor close drives (onVisibleChanged), so
+                // tools/close-check.sh can exercise it without ever touching
+                // the compositor (never `hyprctl dispatch closewindow` or
+                // similar: see docs/agentile/specs/quit-on-window-close/plan.md).
+                if (name === "closewin") {
+                    console.info("Debug: closewin on " + window.flow.screen + " at tick " + window.state.tick);
+                    window.visible = false;
+                    return;
+                }
                 const key = names[name];
                 console.info("Debug: key " + name + (key === undefined ? " (unknown, ignored)" : "")
                     + " on " + window.flow.screen + " at tick " + window.state.tick);
