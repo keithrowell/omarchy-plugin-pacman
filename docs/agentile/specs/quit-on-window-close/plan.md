@@ -218,3 +218,12 @@ Task list for the builder (7 tasks):
 None. The change is a lifecycle fix inside the ADR-0001 architecture (a
 standalone `qs -p` process that now exits with its window); nothing
 far-reaching or hard to reverse.
+
+## Amendment 2026-09-28 (Keith) — no compositor window closes
+
+A probe during the first build ran `hyprctl eval 'return hl.dispatch(hl.dsp.window.close())'`, which closed Keith's focused window (a long-running Claude session). The close check is therefore rewritten:
+
+- **Never** use `hyprctl dispatch closewindow`, `killactive`, `hl.dsp.window.close(...)` or any other compositor close/kill, in scripts, probes or ad-hoc commands. Delete any such line from `tools/close-check.sh` and scratch scripts.
+- The window close is exercised **inside the process**: a debug key (e.g. `PACMAN_DEBUG_KEYS` token `closewin`) makes the game close its own `FloatingWindow` (`visible = false` / `close()`), which must drive the same hook a compositor close drives (`Quickshell.onLastWindowClosed` / `onVisibleChanged`).
+- `tools/close-check.sh` launches `bin/pacman` with a scratch HOME and that debug key script, then asserts the pid it started (`$!`) exits within 2 s; its only cleanup is `kill` of that exact pid.
+- The spec's `hyprctl dispatch closewindow` criterion is superseded by this; record the before/after output in close-check.md as before.
