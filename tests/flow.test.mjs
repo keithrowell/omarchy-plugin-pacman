@@ -1,10 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  createFlow, flowAction, syncFlow, flowTick, shouldStep, initialsOf, titlePage,
+  createFlow, flowAction, syncFlow, flowTick, shouldStep, initialsOf, titlePage, closeRow,
   SCREENS, GAME_SCREENS, ATTRACT_IDLE_TICKS, GAME_OVER_TICKS, QUIT_HOLD_TICKS,
   INITIALS_TIMEOUT_TICKS, TITLE_PAGE_TICKS,
 } from "../lib/flow.mjs";
+import { insert, EMPTY_INITIALS } from "../lib/highscores.mjs";
 
 /** A flow on `screen` reached through legal actions, so every field is consistent. */
 function at(screen, opts) {
@@ -411,4 +412,39 @@ test("purity: no action or tick mutates its input", () => {
   flowAction(initials, "entry-back");
   flowTick(initials, INITIALS_TIMEOUT_TICKS);
   assert.equal(JSON.stringify(initials), frozenInitials);
+});
+
+test("closeRow: initials saves the entry's own letters, score and level", () => {
+  const f = at("initials");
+  const row = closeRow(f, 0, 1);
+  assert.deepEqual(row, { initials: initialsOf(f.entry), score: f.entry.score, level: f.entry.level });
+});
+
+test("closeRow: a real round in progress saves EMPTY_INITIALS with the given score/level", () => {
+  for (const screen of ["ready", "playing", "dying", "level-clear", "paused"]) {
+    const row = closeRow(at(screen), 1230, 2);
+    assert.deepEqual(row, { initials: EMPTY_INITIALS, score: 1230, level: 2 }, screen);
+  }
+});
+
+test("closeRow: no score to save yields null", () => {
+  assert.equal(closeRow(at("playing"), 0, 1), null);
+  assert.equal(closeRow(at("playing"), -5, 1), null);
+  assert.equal(closeRow(at("playing"), NaN, 1), null);
+});
+
+test("closeRow: title and gameover never save, even with a positive score", () => {
+  assert.equal(closeRow(at("title"), 500, 1), null);
+  assert.equal(closeRow(at("gameover"), 500, 1), null);
+});
+
+test("closeRow: the attract demo never saves", () => {
+  const demo = syncFlow(flowAction(createFlow(), "attract"), "playing");
+  assert.equal(closeRow(demo, 500, 1), null);
+});
+
+test("closeRow: the returned row round-trips through HighScoresLib.insert", () => {
+  const row = closeRow(at("playing"), 1230, 2);
+  const table = insert([], row);
+  assert.deepEqual(table, [{ initials: EMPTY_INITIALS, score: 1230, level: 2 }]);
 });
