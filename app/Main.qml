@@ -51,10 +51,12 @@ import "render/Screens.js" as Screens
 // same handlers 1.5 s after start (keys are tapped: pressed and released),
 // a number in the list being a pause in milliseconds (Hyprland's permission
 // system blocks virtual keyboards, so this is how the build is verified
-// unattended). The one non-key token, "closewin", sets visible=false on the
-// window directly, exercising the same close path a compositor window close
-// drives (tools/close-check.sh uses it instead of ever asking the compositor
-// to close a window).
+// unattended). Two non-key tokens exercise the window-close path without
+// ever asking the compositor to close a window: "closewin" sets visible=false
+// directly (the same hook a compositor close drives), and "qthenclose" quits
+// as "q" would and then simulates a second, stray close signal, proving it
+// saves nothing on top of an already-recorded quit. tools/close-check.sh uses
+// both.
 ShellRoot {
     FloatingWindow {
         id: window
@@ -254,10 +256,13 @@ ShellRoot {
 
         // The one way out, however it started (a key or the window closing).
         // Idempotent: a second call (Qt.quit() itself can re-raise
-        // lastWindowClosed/visibleChanged) is a no-op. Stops sound before the
-        // frame loop so nothing can restart a loop after, then blocks on the
-        // pending high-score/settings write (Settings.flush()) so it is not
-        // lost to Qt.quit()'s async race; exitWatchdog bounds the worst case.
+        // lastWindowClosed/visibleChanged) is a no-op (callers that also need
+        // to guard a *save* before this, like windowClosed(), check
+        // `quitting` themselves first). Stops sound before the frame loop so
+        // nothing can restart a loop after, then blocks on the pending
+        // high-score/settings write (Settings.flush()) so it is not lost to
+        // Qt.quit()'s async race; exitWatchdog is a fallback for a hang
+        // *after* Qt.quit() itself, not for a slow flush (see below).
         function shutdown(reason) {
             if (quitting) return;
             quitting = true;
@@ -285,11 +290,17 @@ ShellRoot {
             }
         }
 
-        // The compositor closed the window (see the two hooks below). `via`
-        // names which signal called this, so close-check.md can record which
-        // one actually fires (the `quitting` guard in shutdown() means only
-        // the first caller's reason is ever logged).
+        // The compositor closed the window (see the two hooks below, either
+        // of which may fire, sometimes both for the same close). `via` names
+        // which signal called this, so close-check.md can record which one
+        // actually fires. Guards on `quitting` itself, before closeSave(): a
+        // real SUPER+W fires both `visibleChanged` and `lastWindowClosed`, so
+        // without this a second call would run closeSave() again (a
+        // duplicate high-score row, or a mid-round row saved on top of an
+        // already-saved initials entry) even though shutdown() below is
+        // idempotent on its own.
         function windowClosed(via) {
+            if (quitting) return;
             closeSave();
             shutdown("window closed: " + via);
         }
@@ -641,17 +652,21 @@ ShellRoot {
         // The compositor closing the window (SUPER+W, a click on the close
         // button, `hyprctl dispatch closewindow`) only hides the QWindow;
         // Quickshell does not quit on it, so both plausible signals are
-        // hooked (the `quitting` guard makes whichever fires second a no-op;
-        // close-check.md records which one actually fires).
+        // hooked. A real close can fire both (or one, then Qt.quit() below
+        // re-raising the other during teardown); windowClosed()'s own
+        // `quitting` guard makes every call after the first a no-op, so
+        // whichever fires second never re-runs closeSave(). close-check.md
+        // records which one actually fires first.
         Connections {
             target: Quickshell
             function onLastWindowClosed() { window.windowClosed("lastWindowClosed"); }
         }
-        onVisibleChanged: if (!visible && !quitting) windowClosed("visibleChanged")
+        onVisibleChanged: if (!visible) windowClosed("visibleChanged")
 
-        // Belt and braces: shutdown()'s save-and-flush is normally
-        // synchronous, but this bounds the worst case so a stuck write can
-        // never keep the process alive past the spec's 2 s.
+        // Belt and braces, for a hang *after* Qt.quit() is called (e.g. Qt
+        // itself failing to tear down): shutdown()'s Settings.flush() blocks
+        // this same thread, so it cannot race the flush and does not bound
+        // its worst case — only Settings.flush()/waitForJob() returning does.
         Timer {
             id: exitWatchdog
             interval: 1500
@@ -719,9 +734,31 @@ ShellRoot {
                 // tools/close-check.sh can exercise it without ever touching
                 // the compositor (never `hyprctl dispatch closewindow` or
                 // similar: see docs/agentile/specs/quit-on-window-close/plan.md).
+                // A real SUPER+W often raises both onVisibleChanged and
+                // Quickshell.onLastWindowClosed for the same close; the second
+                // call here simulates that so the check also proves
+                // windowClosed()'s own `quitting` guard stops the second call
+                // from re-running closeSave() (no duplicate high-score row).
                 if (name === "closewin") {
                     console.info("Debug: closewin on " + window.flow.screen + " at tick " + window.state.tick);
                     window.visible = false;
+                    window.windowClosed("lastWindowClosed (simulated second signal)");
+                    return;
+                }
+                // Not a key either: quits exactly as "q" would (records
+                // nothing mid-game), then simulates a stray lastWindowClosed
+                // arriving during Qt.quit()'s own teardown, in the same
+                // synchronous call (Qt.quit() only posts a quit event; it
+                // does not stop this script, and the process exits too fast
+                // for a *separate*, later-scheduled debug key to land, so the
+                // second signal has to be simulated right here to prove
+                // windowClosed()'s `quitting` guard, not shutdown()'s, is
+                // what stops it saving a mid-round row on top of the q that
+                // already recorded nothing.
+                if (name === "qthenclose") {
+                    console.info("Debug: qthenclose on " + window.flow.screen + " at tick " + window.state.tick);
+                    window.quit();
+                    window.windowClosed("lastWindowClosed (simulated post-quit)");
                     return;
                 }
                 const key = names[name];
